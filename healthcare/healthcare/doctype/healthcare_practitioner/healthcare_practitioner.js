@@ -144,10 +144,6 @@ frappe.ui.form.on("Healthcare Practitioner", {
 				d.show();
 			});
 		}
-
-
-
-	
 	},
 
 	practitioner_primary_address: function (frm) {

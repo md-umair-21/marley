@@ -34,6 +34,8 @@
   "practitioner_schedules",
   "google_calendar",
   "show_in_portal",
+  "availability_status",
+  "unavailability_note",
   "charges",
   "op_consulting_charge_item",
   "op_consulting_charge",
