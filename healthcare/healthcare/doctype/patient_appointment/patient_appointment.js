@@ -428,10 +428,13 @@ frappe.ui.form.on("Patient Appointment", {
 					fieldname: [
 						"availability_status",
 						"unavailability_note",
+						
+						
 						"practitioner_name"
 					], 
 				},
 
+				
 				callback: function(r) {
 					if (r.message && r.message.availability_status === "Unavailable") {
 						let note = r.message.unavailability_note;
@@ -439,6 +442,7 @@ frappe.ui.form.on("Patient Appointment", {
 							r.message.practitioner_name || frm.doc.practitioner;
 						frappe.msgprint({
 							title: __("Unavailable"),
+							
 							message: note 
 								? note
 								: __("{0} is unavailable now.", [doctor_name]),

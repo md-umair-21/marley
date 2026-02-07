@@ -304,6 +304,7 @@ class PatientAppointment(Document):
 			status, note = frappe.db.get_value(
 				"Healthcare Practitioner", self.practitioner, ["availability_status", "unavailability_note"]
 			)
+			
 			if status == "Unavailable":
 				doctor_name = self.practitioner_name or self.practitioner
 				message = note or _("Doctor {0} is unavailable now.").format(doctor_name)
