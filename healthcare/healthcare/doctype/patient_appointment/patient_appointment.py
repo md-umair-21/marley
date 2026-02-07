@@ -294,18 +294,18 @@ class PatientAppointment(Document):
 
 	def validate_practitioner_unavailability(self):
 		scopes = [self.practitioner, self.department, self.service_unit]
-		
+
 		if self.practitioner and (
 			self.is_new()
 			or self.has_value_changed("practitioner")
 			or self.has_value_changed("appointment_date")
 			or self.has_value_changed("appointment_time")
 		):
-			status, note = frappe.db.get_value(
-				"Healthcare Practitioner", self.practitioner, ["availability_status", "unavailability_note"]
-			)
-			
-			if status == "Unavailable":
+		status, note = frappe.db.get_value(
+			"Healthcare Practitioner", practitioner, ["availability_status", "unavailability_note"]
+		)
+
+		if status == "Unavailable":
 				doctor_name = self.practitioner_name or self.practitioner
 				message = note or _("Doctor {0} is unavailable now.").format(doctor_name)
 				frappe.throw(message, title=_("Practitioner Unavailable"))
@@ -723,7 +723,7 @@ def get_availability_data(date, practitioner, appointment):
 		status, note = frappe.db.get_value(
 			"Healthcare Practitioner", practitioner, ["availability_status", "unavailability_note"]
 		)
-		
+
 		if status == "Unavailable":
 			doctor_name = (
 				frappe.db.get_value("Healthcare Practitioner", practitioner, "practitioner_name")

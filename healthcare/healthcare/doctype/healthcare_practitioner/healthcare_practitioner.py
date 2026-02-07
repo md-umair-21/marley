@@ -169,8 +169,8 @@ def get_supplier_and_user(user_id=None, supplier=None):
 		.where((dlink.link_name == supplier) | (con.user == user_id))
 		.run(as_dict=True)
 	)
-
 	return supplier_and_user[0] if supplier_and_user else None
+
 
 @frappe.whitelist()
 def update_availability_status(practitioner, status, note=""):

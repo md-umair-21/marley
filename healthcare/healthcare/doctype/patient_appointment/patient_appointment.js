@@ -434,7 +434,7 @@ frappe.ui.form.on("Patient Appointment", {
 						let note = r.message.unavailability_note;
 						let doctor_name =
 							r.message.practitioner_name || frm.doc.practitioner;
-		
+
 						frappe.msgprint({
 							title: __("Unavailable"),
 							message: note
