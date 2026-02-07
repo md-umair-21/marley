@@ -301,14 +301,14 @@ class PatientAppointment(Document):
 			or self.has_value_changed("appointment_date")
 			or self.has_value_changed("appointment_time")
 		):
-		status, note = frappe.db.get_value(
-			"Healthcare Practitioner", practitioner, ["availability_status", "unavailability_note"]
-		)
+			status, note = frappe.db.get_value(
+				"Healthcare Practitioner", practitioner, ["availability_status", "unavailability_note"]
+			)
 
-		if status == "Unavailable":
-				doctor_name = self.practitioner_name or self.practitioner
-				message = note or _("Doctor {0} is unavailable now.").format(doctor_name)
-				frappe.throw(message, title=_("Practitioner Unavailable"))
+			if status == "Unavailable":
+					doctor_name = self.practitioner_name or self.practitioner
+					message = note or _("Doctor {0} is unavailable now.").format(doctor_name)
+					frappe.throw(message, title=_("Practitioner Unavailable"))
 		if self.appointment_datetime:
 			start_dt = get_datetime(self.appointment_datetime)
 		else:
