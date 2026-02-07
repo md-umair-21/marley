@@ -133,7 +133,9 @@ frappe.ui.form.on("Healthcare Practitioner", {
 								if (r.exc) {
 									return;
 								}
-								frappe.msgprint(__("Availability status updated successfully"));
+								frappe.msgprint(
+									__("Availability status updated successfully"),
+								);
 								d.hide();
 								frm.reload_doc();
 							},

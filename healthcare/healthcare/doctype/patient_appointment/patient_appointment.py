@@ -302,9 +302,7 @@ class PatientAppointment(Document):
 			or self.has_value_changed("appointment_time")
 		):
 			status, note = frappe.db.get_value(
-				"Healthcare Practitioner",
-				self.practitioner,
-				["availability_status", "unavailability_note"]
+				"Healthcare Practitioner", self.practitioner, ["availability_status", "unavailability_note"]
 			)
 			if status == "Unavailable":
 				doctor_name = self.practitioner_name or self.practitioner
@@ -328,11 +326,7 @@ class PatientAppointment(Document):
 		rows = frappe.get_all(
 			"Practitioner Availability",
 			fields=["name", "start_date", "end_date", "start_time", "end_time"],
-			filters={
-				"type": "Unavailable",
-				"docstatus": ("!=", 2),
-				"scope": ["in", scopes]
-			},
+			filters={"type": "Unavailable", "docstatus": ("!=", 2), "scope": ["in", scopes]},
 			order_by="start_date asc, start_time asc",
 		)
 
@@ -726,17 +720,14 @@ def get_availability_data(date, practitioner, appointment):
 
 	if practitioner:
 		status, note = frappe.db.get_value(
-			"Healthcare Practitioner",
-			practitioner,
-			["availability_status", "unavailability_note"]
+			"Healthcare Practitioner", practitioner, ["availability_status", "unavailability_note"]
 		)
 		
 		if status == "Unavailable":
-			doctor_name = frappe.db.get_value(
-				"Healthcare Practitioner", 
-				practitioner, 
-				"practitioner_name"
-			) or practitioner
+			doctor_name = (
+				frappe.db.get_value("Healthcare Practitioner", practitioner, "practitioner_name")
+				or practitioner
+			)
 			message = note or _("Doctor {0} is unavailable now.").format(doctor_name)
 			frappe.throw(message, title=_("Practitioner Unavailable"))
 
