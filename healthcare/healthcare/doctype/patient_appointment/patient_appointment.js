@@ -419,7 +419,6 @@ frappe.ui.form.on("Patient Appointment", {
 		if (frm.doc.practitioner) {
 			frm.events.set_payment_details(frm);
 		}
-		if (frm.doc.practitioner) {
 			frappe.call({
 				method: "frappe.client.get_value",
 				args: {
@@ -428,35 +427,29 @@ frappe.ui.form.on("Patient Appointment", {
 					fieldname: [
 						"availability_status",
 						"unavailability_note",
-						
-						
-						"practitioner_name"
-					], 
+						"practitioner_name",
+					],
 				},
-
-				
-				callback: function(r) {
-					if (r.message && r.message.availability_status === "Unavailable") {
+				callback: function (r) {
+					if (
+						r.message &&
+						r.message.availability_status === "Unavailable"
+					) {
 						let note = r.message.unavailability_note;
-						let doctor_name = 
+						let doctor_name =
 							r.message.practitioner_name || frm.doc.practitioner;
+		
 						frappe.msgprint({
 							title: __("Unavailable"),
-							
-							message: note 
+							message: note
 								? note
 								: __("{0} is unavailable now.", [doctor_name]),
 							indicator: "red",
 						});
 					}
-				
 				},
 			});
-		
-		
-	   
-		}
-	},
+		},
 
 	appointment_type: function (frm) {
 		if (frm.doc.appointment_type) {
