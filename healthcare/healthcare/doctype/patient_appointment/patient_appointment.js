@@ -445,6 +445,7 @@ frappe.ui.form.on("Patient Appointment", {
 								: __("{0} is unavailable now.", [doctor_name]),
 							indicator: "red",
 						});
+						frm.set_value("practitioner", "");
 					}
 				},
 			});
