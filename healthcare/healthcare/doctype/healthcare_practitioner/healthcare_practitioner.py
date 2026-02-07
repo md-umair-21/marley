@@ -171,3 +171,22 @@ def get_supplier_and_user(user_id=None, supplier=None):
 	)
 
 	return supplier_and_user[0] if supplier_and_user else None
+
+@frappe.whitelist()
+def update_availability_status(practitioner, status, note=""):
+    
+	if status not in ["Available", "Unavailable"]:
+		frappe.throw(_("Invalid status"))
+
+	doc = frappe.get_doc("Healthcare Practitioner", practitioner)
+	doc.check_permission("write")
+
+	frappe.db.set_value("Healthcare Practitioner", practitioner, "availability_status", status)
+	frappe.db.set_value(
+		"Healthcare Practitioner",
+		practitioner,
+		"unavailability_note",
+		note if status == "Unavailable" else "",
+	)
+
+	return status

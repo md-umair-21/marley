@@ -393,7 +393,23 @@
    "fieldname": "show_in_portal",
    "fieldtype": "Check",
    "label": "Show in Portal"
-  }
+  },
+  {
+    "default": "Available",
+    "fieldname": "availability_status",
+    "fieldtype": "Select",
+    "in_list_view": 1,
+    "label": "Availability Status",
+    "options": "Available\nUnavailable",
+    "read_only": 1
+   },
+   {
+    "depends_on": "eval:doc.availability_status=='Unavailable'",
+    "fieldname": "unavailability_note",
+    "fieldtype": "Small Text",
+    "label": "Unavailability Note",
+    "read_only": 1
+   }
  ],
  "grid_page_length": 50,
  "image_field": "image",
