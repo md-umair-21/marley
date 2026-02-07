@@ -471,10 +471,7 @@ class PatientAppointment(Document):
 			.select(
 				Max(appointment.position_in_queue).as_("max_position"),
 			)
-			.where(
-				(appointment.appointment_date == self.appointment_date)
-				& (appointment.name != self.name)
-			)
+			.where((appointment.appointment_date == self.appointment_date) & (appointment.name != self.name))
 		)
 
 		if self.appointment_for == "Practitioner":
