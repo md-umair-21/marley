@@ -302,7 +302,7 @@ class PatientAppointment(Document):
 			or self.has_value_changed("appointment_time")
 		):
 			status, note = frappe.db.get_value(
-				"Healthcare Practitioner", practitioner, ["availability_status", "unavailability_note"]
+				"Healthcare Practitioner", self.practitioner, ["availability_status", "unavailability_note"]
 			)
 
 			if status == "Unavailable":
