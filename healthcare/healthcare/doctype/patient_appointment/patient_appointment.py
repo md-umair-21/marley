@@ -306,9 +306,9 @@ class PatientAppointment(Document):
 			)
 
 			if status == "Unavailable":
-					doctor_name = self.practitioner_name or self.practitioner
-					message = note or _("Doctor {0} is unavailable now.").format(doctor_name)
-					frappe.throw(message, title=_("Practitioner Unavailable"))
+				doctor_name = self.practitioner_name or self.practitioner
+				message = note or _("Doctor {0} is unavailable now.").format(doctor_name)
+				frappe.throw(message, title=_("Practitioner Unavailable"))
 		if self.appointment_datetime:
 			start_dt = get_datetime(self.appointment_datetime)
 		else:
