@@ -7,7 +7,7 @@ import json
 import frappe
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
-from frappe.utils import now_datetime, nowdate 
+from frappe.utils import now_datetime, nowdate
 
 from healthcare.controllers.service_request_controller import ServiceRequestController
 from healthcare.healthcare.doctype.observation.observation import add_observation
@@ -479,7 +479,8 @@ def make_sales_invoice(source_name, target_doc=None):
 	sr = frappe.get_doc("Service Request", service_request)
 
 	if sr.billing_status == "Invoiced":
-		frappe.throw(_("Service Request {0} is already invoiced").format(sr.name))		
+		frappe.throw(_("Service Request {0} is already invoiced").format(sr.name))
+
 	if not sr.template_dn:
 		frappe.throw(_("Template not selected"))
 
