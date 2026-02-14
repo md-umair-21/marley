@@ -472,7 +472,7 @@ def make_appointment(source_name, target_doc=None, ignore_permissions=False):
 
 
 @frappe.whitelist()
-def make_sales_invoice(source_name, target_doc=None):
+def make_sales_invoice(source_name: str, target_doc: dict | None = None):
 	service_request = source_name
 	if not service_request:
 		return
