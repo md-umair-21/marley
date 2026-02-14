@@ -470,6 +470,7 @@ def make_appointment(source_name, target_doc=None, ignore_permissions=False):
 
 	return doclist
 
+
 @frappe.whitelist()
 def make_sales_invoice(source_name, target_doc=None):
 	service_request = source_name
@@ -541,7 +542,6 @@ def make_sales_invoice(source_name, target_doc=None):
 			},
 		)
 
-
 	doc = get_mapped_doc(
 		"Service Request",
 		sr.name,
@@ -552,7 +552,6 @@ def make_sales_invoice(source_name, target_doc=None):
 		},
 		target_doc=target_doc,
 		postprocess=postprocess,
-
 	)
 
 	doc.set_missing_values(for_validate=True)
