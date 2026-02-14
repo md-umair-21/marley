@@ -5,6 +5,15 @@
 
 frappe.ui.form.on("Service Request", {
 	refresh: function (frm) {
+		// AUTO REFRESH AFTER INVOICE SUBMIT
+		if (!frm.is_new() && frm.doc.docstatus == 1) {
+			frappe.db.get_value("Service Request", frm.doc.name, "billing_status")
+			.then(r => {
+				if (r.message && r.message.billing_status !== frm.doc.billing_status) {
+					frm.reload_doc();
+				}
+			});
+		}
 		if (
 			!frm.is_new() &&
 			!frm.doc.insurance_policy &&
