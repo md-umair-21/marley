@@ -255,19 +255,46 @@ frappe.ui.form.on("Service Request", {
 				__("Create"),
 			);
 		}
-		// SALES INVOICE BUTTON 
+		// SALES INVOICE BUTTON
 		if (frm.doc.docstatus === 1 && frm.doc.billing_status !== "Invoiced") {
 			frm.add_custom_button(
 				__("Sales Invoice"),
 				function () {
-					frappe.model.open_mapped_doc({
-						method: "healthcare.healthcare.doctype.service_request.service_request.make_sales_invoice",
-						frm: frm
+
+					//  Check if Sales Invoice already exists
+					frappe.db.get_value(
+						"Sales Invoice Item",
+						{
+							reference_dt: "Service Request",
+							reference_dn: frm.doc.name,
+							docstatus: ["!=", 2] // not cancelled
+						},
+						"parent"
+					).then(r => {
+
+						// If already exists → open existing invoice
+						if (r.message && r.message.parent) {
+							frappe.set_route("Form", "Sales Invoice", r.message.parent);
+							frappe.show_alert({
+								message: __("Sales Invoice already created"),
+								indicator: "blue"
+							});
+						}
+
+						// If not exists → create new
+						else {
+							frappe.model.open_mapped_doc({
+								method: "healthcare.healthcare.doctype.service_request.service_request.make_sales_invoice",
+								frm: frm
+							});
+						}
+
 					});
 				},
 				__("Create")
 			);
 		}
+
 
 
 		frm.page.set_inner_btn_group_as_primary(__("Create"));

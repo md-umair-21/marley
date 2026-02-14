@@ -472,39 +472,55 @@ def make_appointment(source_name, target_doc=None, ignore_permissions=False):
 	return doclist
 
 @frappe.whitelist()
-def make_sales_invoice(service_request):
+def make_sales_invoice(source_name, target_doc=None):
+	service_request = source_name
 	if not service_request:
 		return
 
 	sr = frappe.get_doc("Service Request", service_request)
 
 	if not sr.template_dn:
-		frappe.throw("Template not selected")
+		frappe.throw(_("Template not selected"))
 
 	# fetch template
 	template = frappe.get_doc(sr.template_dt, sr.template_dn)
 
-	# check if template is billable
-	if not template.get("is_billable"):
-		frappe.throw(f"Template '{sr.template_dn}' is not marked as Billable")
+	# safe billable check (only if field exists)
+	if template.meta.has_field("is_billable"):
+		if not template.get("is_billable"):
+			frappe.throw(_("Template '{0}' is not marked as Billable").format(sr.template_dn))
 
+	# item
 	item_code = template.get("item")
-
 	if not item_code:
-		frappe.throw(f"{sr.template_dn} is not set as billable")
+		frappe.throw(_("{0} is not set as billable").format(sr.template_dn))
 
 	item_doc = frappe.get_doc("Item", item_code)
-	rate = template.get("rate") 
 
+	# rate fallback logic (IMPORTANT FIX)
+	rate = template.get("rate")
 
+	if not rate or rate == 0:
+		rate = item_doc.standard_rate or 0
+
+	if not rate or rate == 0:
+		frappe.throw(_("Rate not found in template or Item Price for item {0}").format(item_code))
+
+	# get customer from patient (CRITICAL FIX)
+	customer = frappe.db.get_value("Patient", sr.patient, "customer")
+	if not customer:
+		frappe.throw(_("Patient is not linked to any Customer"))
 
 	def postprocess(source, target):
-		uom = item_doc.stock_uom 
+		uom = item_doc.stock_uom
 
 		target.company = sr.company
 		target.patient = sr.patient
-		target.customer = sr.patient
-		target.due_date = nowdate()   
+
+		# FIX: correct customer
+		target.customer = customer
+
+		target.due_date = nowdate()
 
 		target.append("items", {
 			"item_code": item_doc.name,
@@ -528,7 +544,7 @@ def make_sales_invoice(service_request):
 				"doctype": "Sales Invoice",
 			}
 		},
-		target_doc=None,
+		target_doc=target_doc,
 		postprocess=postprocess
 	)
 
