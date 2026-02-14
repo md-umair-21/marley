@@ -479,8 +479,7 @@ def make_sales_invoice(source_name, target_doc=None):
 	sr = frappe.get_doc("Service Request", service_request)
 
 	if sr.billing_status == "Invoiced":
-		frappe.throw(_("Service Request {0} is already invoiced").format(sr.name))
-		
+		frappe.throw(_("Service Request {0} is already invoiced").format(sr.name))		
 	if not sr.template_dn:
 		frappe.throw(_("Template not selected"))
 
@@ -550,4 +549,5 @@ def make_sales_invoice(source_name, target_doc=None):
 		postprocess=postprocess
 	)
 
+	doc.set_missing_values(for_validate=True)
 	return doc
