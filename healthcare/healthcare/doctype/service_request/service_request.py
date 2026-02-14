@@ -524,19 +524,23 @@ def make_sales_invoice(source_name, target_doc=None):
 
 		target.due_date = nowdate()
 
-		target.append("items", {
-			"item_code": item_doc.name,
-			"item_name": item_doc.item_name,
-			"description": sr.template_dn,
-			"qty": sr.quantity or 1,
-			"rate": rate,
-			"uom": uom,
-			"stock_uom": uom,
-			"income_account": frappe.get_cached_value("Company", sr.company, "default_income_account"),
-			"cost_center": frappe.get_cached_value("Company", sr.company, "cost_center"),
-			"reference_dt": "Service Request",
-			"reference_dn": sr.name,
-		})
+		target.append(
+			"items",
+			{
+				"item_code": item_doc.name,
+				"item_name": item_doc.item_name,
+				"description": sr.template_dn,
+				"qty": sr.quantity or 1,
+				"rate": rate,
+				"uom": uom,
+				"stock_uom": uom,
+				"income_account": frappe.get_cached_value("Company", sr.company, "default_income_account"),
+				"cost_center": frappe.get_cached_value("Company", sr.company, "cost_center"),
+				"reference_dt": "Service Request",
+				"reference_dn": sr.name,
+			},
+		)
+
 
 	doc = get_mapped_doc(
 		"Service Request",
@@ -547,7 +551,8 @@ def make_sales_invoice(source_name, target_doc=None):
 			}
 		},
 		target_doc=target_doc,
-		postprocess=postprocess
+		postprocess=postprocess,
+
 	)
 
 	doc.set_missing_values(for_validate=True)
