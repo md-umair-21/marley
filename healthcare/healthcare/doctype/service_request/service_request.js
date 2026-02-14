@@ -255,6 +255,20 @@ frappe.ui.form.on("Service Request", {
 				__("Create"),
 			);
 		}
+		// SALES INVOICE BUTTON 
+		if (frm.doc.docstatus === 1 && frm.doc.billing_status !== "Invoiced") {
+			frm.add_custom_button(
+				__("Sales Invoice"),
+				function () {
+					frappe.model.open_mapped_doc({
+						method: "healthcare.healthcare.doctype.service_request.service_request.make_sales_invoice",
+						frm: frm
+					});
+				},
+				__("Create")
+			);
+		}
+
 
 		frm.page.set_inner_btn_group_as_primary(__("Create"));
 	},

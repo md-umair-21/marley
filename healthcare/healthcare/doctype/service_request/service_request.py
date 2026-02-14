@@ -8,6 +8,7 @@ import frappe
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import now_datetime
+from frappe.utils import nowdate  
 
 from healthcare.controllers.service_request_controller import ServiceRequestController
 from healthcare.healthcare.doctype.observation.observation import add_observation
@@ -469,3 +470,66 @@ def make_appointment(source_name, target_doc=None, ignore_permissions=False):
 	)
 
 	return doclist
+
+@frappe.whitelist()
+def make_sales_invoice(service_request):
+	if not service_request:
+		return
+
+	sr = frappe.get_doc("Service Request", service_request)
+
+	if not sr.template_dn:
+		frappe.throw("Template not selected")
+
+	# fetch template
+	template = frappe.get_doc(sr.template_dt, sr.template_dn)
+
+	# check if template is billable
+	if not template.get("is_billable"):
+		frappe.throw(f"Template '{sr.template_dn}' is not marked as Billable")
+
+	item_code = template.get("item")
+
+	if not item_code:
+		frappe.throw(f"{sr.template_dn} is not set as billable")
+
+	item_doc = frappe.get_doc("Item", item_code)
+	rate = template.get("rate") 
+
+
+
+	def postprocess(source, target):
+		uom = item_doc.stock_uom 
+
+		target.company = sr.company
+		target.patient = sr.patient
+		target.customer = sr.patient
+		target.due_date = nowdate()   
+
+		target.append("items", {
+			"item_code": item_doc.name,
+			"item_name": item_doc.item_name,
+			"description": sr.template_dn,
+			"qty": sr.quantity or 1,
+			"rate": rate,
+			"uom": uom,
+			"stock_uom": uom,
+			"income_account": frappe.get_cached_value("Company", sr.company, "default_income_account"),
+			"cost_center": frappe.get_cached_value("Company", sr.company, "cost_center"),
+			"reference_dt": "Service Request",
+			"reference_dn": sr.name,
+		})
+
+	doc = get_mapped_doc(
+		"Service Request",
+		sr.name,
+		{
+			"Service Request": {
+				"doctype": "Sales Invoice",
+			}
+		},
+		target_doc=None,
+		postprocess=postprocess
+	)
+
+	return doc
