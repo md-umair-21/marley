@@ -7,8 +7,8 @@ import json
 import frappe
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
-from frappe.utils import now_datetime, nowdate
 from frappe.model.naming import get_default_naming_series
+from frappe.utils import now_datetime, nowdate
 
 from healthcare.controllers.service_request_controller import ServiceRequestController
 from healthcare.healthcare.doctype.observation.observation import add_observation
