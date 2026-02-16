@@ -8,6 +8,7 @@ import frappe
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import now_datetime, nowdate
+from frappe.model.naming import get_default_naming_series
 
 from healthcare.controllers.service_request_controller import ServiceRequestController
 from healthcare.healthcare.doctype.observation.observation import add_observation
@@ -554,5 +555,10 @@ def make_sales_invoice(source_name: str, target_doc: dict | None = None):
 		postprocess=postprocess,
 	)
 
+	# REMOVE inherited Service Request series
+	doc.naming_series = None
+	doc.name = None
+
 	doc.set_missing_values(for_validate=True)
+	doc.naming_series = get_default_naming_series("Sales Invoice")
 	return doc
