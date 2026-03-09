@@ -29,7 +29,6 @@ class HealthcareSettings(Document):
 			if self.registration_fee <= 0:
 				frappe.throw(_("Registration Fee cannot be negative or zero"))
 
-
 		# registration fee fields: validate required service item and fee.
 		if (
 			self.meta.has_field("include_registration_fee")
