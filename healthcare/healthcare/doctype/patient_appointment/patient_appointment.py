@@ -3,6 +3,7 @@
 
 
 import datetime
+import hashlib
 import json
 from typing import Optional
 
@@ -461,6 +462,32 @@ class PatientAppointment(Document):
 				event_doc.reload()
 				self.google_meet_link = event_doc.google_meet_link
 
+	def _get_token_lock_name(self):
+		scope_parts = [
+			str(self.appointment_date or ""),
+			str(self.appointment_for or ""),
+			str(self.practitioner or ""),
+			str(self.appointment_time or ""),
+			str(self.service_unit or ""),
+			str(self.department or ""),
+		]
+		raw_key = "|".join(scope_parts)
+		key_hash = hashlib.sha1(raw_key.encode()).hexdigest()
+		return f"patient_appt_token_{key_hash}"
+
+	def _acquire_token_lock(self, lock_name, timeout=10):
+		if frappe.db.db_type == "postgres":
+			# Transaction-scoped advisory lock in PostgreSQL.
+			frappe.db.sql("SELECT pg_advisory_xact_lock(hashtext(%s))", (lock_name,))
+			return True
+
+		locked = frappe.db.sql("SELECT GET_LOCK(%s, %s)", (lock_name, timeout))
+		return bool(locked and locked[0] and locked[0][0] == 1)
+
+	def _release_token_lock(self, lock_name):
+		if frappe.db.db_type != "postgres":
+			frappe.db.sql("SELECT RELEASE_LOCK(%s)", (lock_name,))
+
 	def set_token_number(self):
 		from frappe.query_builder.functions import Max
 
@@ -473,32 +500,39 @@ class PatientAppointment(Document):
 		if not self.appointment_date:
 			return
 
-		appointment = frappe.qb.DocType("Patient Appointment")
-		query = (
-			frappe.qb.from_(appointment)
-			.select(Max(appointment.token_number).as_("max_token"))
-			.where(
-				(appointment.appointment_based_on_check_in == 1)
-				& (appointment.name != self.name)
-				& (appointment.appointment_date == self.appointment_date)
-			)
-		)
+		lock_name = self._get_token_lock_name()
+		if not self._acquire_token_lock(lock_name):
+			frappe.throw(_("Unable to assign token number right now. Please try again."))
 
-		if self.appointment_for == "Practitioner":
-			query = query.where(
-				(appointment.practitioner == self.practitioner)
-				& (appointment.appointment_time == self.appointment_time)
-				& (appointment.service_unit == self.service_unit)
+		try:
+			appointment = frappe.qb.DocType("Patient Appointment")
+			query = (
+				frappe.qb.from_(appointment)
+				.select(Max(appointment.token_number).as_("max_token"))
+				.where(
+					(appointment.appointment_based_on_check_in == 1)
+					& (appointment.name != self.name)
+					& (appointment.appointment_date == self.appointment_date)
+				)
 			)
-		else:
-			if self.service_unit:
-				query = query.where(appointment.service_unit == self.service_unit)
-			if self.department:
-				query = query.where(appointment.department == self.department)
 
-		result = query.run(as_dict=True)
-		max_token = result[0]["max_token"] if result and result[0].get("max_token") else 0
-		self.token_number = max_token + 1
+			if self.appointment_for == "Practitioner":
+				query = query.where(
+					(appointment.practitioner == self.practitioner)
+					& (appointment.appointment_time == self.appointment_time)
+					& (appointment.service_unit == self.service_unit)
+				)
+			else:
+				if self.service_unit:
+					query = query.where(appointment.service_unit == self.service_unit)
+				if self.department:
+					query = query.where(appointment.department == self.department)
+
+			result = query.run(as_dict=True)
+			max_token = result[0]["max_token"] if result and result[0].get("max_token") else 0
+			self.token_number = max_token + 1
+		finally:
+			self._release_token_lock(lock_name)
 
 	def set_position_in_queue(self):
 		from frappe.query_builder.functions import Max
