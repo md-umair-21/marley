@@ -1524,8 +1524,8 @@ let make_payment = function (frm, automate_invoicing) {
 				} else {
 					d.get_primary_btn().attr("disabled", false);
 					if (!frm.via_discount_percentage) {
-						discount_percentage = total_charge 
-							? (discount_amount / total_charge) * 100 
+						discount_percentage = total_charge
+							? (discount_amount / total_charge) * 100
 							: 0;
 						d.set_values({
 							discount_percentage: discount_percentage,
