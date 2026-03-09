@@ -29,6 +29,12 @@ class HealthcareSettings(Document):
 			if self.registration_fee <= 0:
 				frappe.throw(_("Registration Fee cannot be negative or zero"))
 
+
+		# Custom registration fee fields: disallow negative values.
+		if self.meta.has_field("include_registration_fee") and self.meta.has_field("reg_fee"):
+			if self.get("include_registration_fee") and self.get("reg_fee") is not None and self.get("reg_fee") <= 0:
+				frappe.throw(_("Registration Fee cannot be negative or zero"))
+
 		if self.inpatient_visit_charge_item:
 			validate_service_item(self.inpatient_visit_charge_item)
 		if self.op_consulting_charge_item:

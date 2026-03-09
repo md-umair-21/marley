@@ -665,7 +665,8 @@ def get_registration_fee_context(appointment_doc):
 	if not settings.get("include_registration_fee"):
 		return {"apply_registration_fee": False, "registration_fee": 0, "registration_item": None}
 
-	if not settings.get("reg_item") or not flt(settings.get("reg_fee")):
+	reg_fee = flt(settings.get("reg_fee"))
+	if not settings.get("reg_item") or reg_fee <= 0:
 		return {"apply_registration_fee": False, "registration_fee": 0, "registration_item": None}
 
 	is_new_patient = check_is_new_patient_by_invoice(appointment_doc.patient)
@@ -674,22 +675,24 @@ def get_registration_fee_context(appointment_doc):
 
 	return {
 		"apply_registration_fee": True,
-		"registration_fee": flt(settings.get("reg_fee")),
+		"registration_fee": reg_fee,
 		"registration_item": settings.get("reg_item"),
 	}
 
 
 def get_registration_fee_settings():
 	settings = {"include_registration_fee": 0, "reg_item": None, "reg_fee": 0}
-	try:
-		settings["include_registration_fee"] = cint(
-			frappe.db.get_single_value("Healthcare Settings", "include_registration_fee")
-		)
-		settings["reg_item"] = frappe.db.get_single_value("Healthcare Settings", "reg_item")
-		settings["reg_fee"] = flt(frappe.db.get_single_value("Healthcare Settings", "reg_fee"))
-	except Exception:
+	meta = frappe.get_meta("Healthcare Settings")
+	required_fields = ("include_registration_fee", "reg_item", "reg_fee")
+	if not all(meta.has_field(fieldname) for fieldname in required_fields):
 		# Custom fields may not exist in all sites.
-		return {"include_registration_fee": 0, "reg_item": None, "reg_fee": 0}
+		return settings
+
+	settings["include_registration_fee"] = cint(
+		frappe.db.get_single_value("Healthcare Settings", "include_registration_fee")
+	)
+	settings["reg_item"] = frappe.db.get_single_value("Healthcare Settings", "reg_item")
+	settings["reg_fee"] = flt(frappe.db.get_single_value("Healthcare Settings", "reg_fee"))
 	return settings
 
 
@@ -718,7 +721,7 @@ def cancel_appointment(appointment_id):
 
 	if appointment.invoiced:
 		sales_invoice = check_sales_invoice_exists(appointment)
-		if sales_invoice and cancel_sales_invoice(sales_invoice):
+		if sales_invoice and cancel_sales_invoice(sales_invoice, appointment.name):
 			msg = _("Appointment {0} and Sales Invoice {1} cancelled").format(
 				appointment.name, sales_invoice.name
 			)
@@ -744,25 +747,38 @@ def cancel_appointment(appointment_id):
 	frappe.msgprint(msg)
 
 
-def cancel_sales_invoice(sales_invoice):
-	if frappe.db.get_single_value("Healthcare Settings", "show_payment_popup"):
-		has_appointment_reference_item = any(
-			item.reference_dt == "Patient Appointment" and item.reference_dn == sales_invoice.appointment
-			for item in sales_invoice.items
-		)
-		has_other_references = any(
-			(item.reference_dt or item.reference_dn)
-			and not (
-				(item.reference_dt == "Patient Appointment" and item.reference_dn == sales_invoice.appointment)
-				or (item.reference_dt == "Patient" and item.reference_dn == sales_invoice.patient)
-			)
-			for item in sales_invoice.items
+def cancel_sales_invoice(sales_invoice, appointment_name=None):
+	if not frappe.db.get_single_value("Healthcare Settings", "show_payment_popup"):
+		return False
+
+	if not appointment_name:
+		appointment_name = next(
+			(
+				item.reference_dn
+				for item in sales_invoice.items
+				if item.reference_dt == "Patient Appointment" and item.reference_dn
+			),
+			None,
 		)
 
-		if has_appointment_reference_item and not has_other_references:
-			if sales_invoice.docstatus.is_submitted():
-				sales_invoice.cancel()
-			return True
+	if not appointment_name:
+		return False
+
+	has_appointment_reference_item = any(
+		item.reference_dt == "Patient Appointment" and item.reference_dn == appointment_name
+		for item in sales_invoice.items
+	)
+	has_other_references = any(
+		not (
+			item.reference_dt == "Patient Appointment" and item.reference_dn == appointment_name
+		)
+		for item in sales_invoice.items
+	)
+
+	if has_appointment_reference_item and not has_other_references:
+		if sales_invoice.docstatus.is_submitted():
+			sales_invoice.cancel()
+		return True
 	return False
 
 
