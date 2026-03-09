@@ -771,7 +771,10 @@ def cancel_sales_invoice(sales_invoice, appointment_name=None):
 		for item in sales_invoice.items
 	)
 	has_other_references = any(
-		not (item.reference_dt == "Patient Appointment" and item.reference_dn == appointment_name)
+		not (
+			(item.reference_dt == "Patient Appointment" and item.reference_dn == appointment_name)
+			or (item.reference_dt == "Patient" and item.reference_dn == sales_invoice.patient)
+		)
 		for item in sales_invoice.items
 	)
 

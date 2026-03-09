@@ -534,12 +534,14 @@
    "fieldname": "reg_fee",
    "fieldtype": "Currency",
    "label": "Registration Fee",
-   "mandatory_depends_on": "eval:doc.include_registration_fee==1"
+   "mandatory_depends_on": "eval:doc.include_registration_fee==1",
+   "non_negative": 1,
+   "options": "Currency"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-03-09 14:14:03.585493",
+ "modified": "2026-03-09 14:39:26.209372",
  "modified_by": "Administrator",
  "module": "Healthcare",
  "name": "Healthcare Settings",

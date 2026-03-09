@@ -50,8 +50,8 @@ class HealthcareSettings(Document):
 			if item_values.get("is_stock_item") or item_values.get("has_stock"):
 				frappe.throw(_("Configure a service Item for {0}").format(self.get("reg_item")))
 
-			if self.get("reg_fee") is not None and self.get("reg_fee") < 0:
-				frappe.throw(_("Registration Fee cannot be less than 0"))
+			if self.get("reg_fee") is not None and self.get("reg_fee") <= 0:
+				frappe.throw(_("Registration Fee cannot be negative or zero"))
 
 		if self.inpatient_visit_charge_item:
 			validate_service_item(self.inpatient_visit_charge_item)
