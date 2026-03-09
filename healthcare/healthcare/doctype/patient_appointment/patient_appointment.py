@@ -3,8 +3,8 @@
 
 
 import datetime
-import hashlib
 import json
+import zlib
 from typing import Optional
 
 import frappe
@@ -463,16 +463,20 @@ class PatientAppointment(Document):
 				self.google_meet_link = event_doc.google_meet_link
 
 	def _get_token_lock_name(self):
-		scope_parts = [
-			str(self.appointment_date or ""),
-			str(self.appointment_for or ""),
-			str(self.practitioner or ""),
-			str(self.appointment_time or ""),
-			str(self.service_unit or ""),
-			str(self.department or ""),
-		]
+		scope_parts = [str(self.appointment_date or ""), str(self.appointment_for or "")]
+		if self.appointment_for == "Practitioner":
+			scope_parts.extend(
+				[
+					str(self.practitioner or ""),
+					str(self.appointment_time or ""),
+					str(self.service_unit or ""),
+				]
+			)
+		else:
+			scope_parts.extend([str(self.service_unit or ""), str(self.department or "")])
+
 		raw_key = "|".join(scope_parts)
-		key_hash = hashlib.sha1(raw_key.encode()).hexdigest()
+		key_hash = f"{zlib.adler32(raw_key.encode()) & 0xFFFFFFFF:08x}"
 		return f"patient_appt_token_{key_hash}"
 
 	def _acquire_token_lock(self, lock_name, timeout=10):
