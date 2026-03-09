@@ -1383,7 +1383,33 @@ let make_payment = function (frm, automate_invoicing) {
 		}
 	}
 
-	function show_payment_dialog(frm, fields) {
+
+	async function show_payment_dialog(frm, fields) {
+		let registration_fee = 0;
+		let registration_data = (
+			await frappe.call({
+				method: "healthcare.healthcare.doctype.patient_appointment.patient_appointment.get_registration_fee_details",
+				args: {
+					appointment_name: frm.doc.name,
+				},
+			})
+		).message;
+
+		if (registration_data?.apply_registration_fee) {
+			registration_fee = flt(registration_data.registration_fee);
+			let total_payable_index = fields.findIndex(
+				field => field.fieldname === "total_payable",
+			);
+			if (total_payable_index > -1) {
+				fields.splice(total_payable_index, 0, {
+					label: "Registration Fee",
+					fieldname: "registration_fee",
+					fieldtype: "Currency",
+					read_only: true,
+				});
+			}
+		}
+
 		let d = new frappe.ui.Dialog({
 			title: "Enter Payment Details",
 			fields: fields,
@@ -1439,11 +1465,15 @@ let make_payment = function (frm, automate_invoicing) {
 			}
 		};
 		d.get_secondary_btn().attr("disabled", true);
-		d.set_values({
+		let dialog_values = {
 			patient: frm.doc.patient_name,
 			consultation_charge: frm.doc.paid_amount,
-			total_payable: frm.doc.paid_amount,
-		});
+			total_payable: flt(frm.doc.paid_amount) + registration_fee,
+		};
+		if (d.get_field("registration_fee")) {
+			dialog_values.registration_fee = registration_fee;
+		}
+		d.set_values(dialog_values);
 
 		if (frm.doc.appointment_for == "Practitioner") {
 			d.set_value("practitioner", frm.doc.practitioner_name);
@@ -1467,7 +1497,9 @@ let make_payment = function (frm, automate_invoicing) {
 			let message = "";
 			let discount_percentage = d.get_value("discount_percentage");
 			let discount_amount = d.get_value("discount_amount");
-			let consultation_charge = d.get_value("consultation_charge");
+			let consultation_charge = flt(d.get_value("consultation_charge"));
+			let registration_fee = flt(d.get_value("registration_fee")) || 0;
+			let total_charge = consultation_charge + registration_fee;
 
 			if (field === "discount_percentage") {
 				if (discount_percentage > 100 || discount_percentage < 0) {
@@ -1479,26 +1511,26 @@ let make_payment = function (frm, automate_invoicing) {
 					if (discount_percentage && discount_amount) {
 						d.set_value("discount_amount", 0);
 					}
-					discount_amount = consultation_charge * (discount_percentage / 100);
+					discount_amount = total_charge * (discount_percentage / 100);
 
 					d.set_values({
 						discount_amount: discount_amount,
-						total_payable: consultation_charge - discount_amount,
+						total_payable: total_charge - discount_amount,
 					}).then(() => delete frm.via_discount_percentage);
 				}
 			} else if (field === "discount_amount") {
-				if (consultation_charge < discount_amount || discount_amount < 0) {
+				if (total_charge < discount_amount || discount_amount < 0) {
 					d.get_primary_btn().attr("disabled", true);
 					message =
-						"Discount amount should not be more than Consultation Charge";
+						"Discount amount should not be more than Total Charge";
 				} else {
 					d.get_primary_btn().attr("disabled", false);
 					if (!frm.via_discount_percentage) {
 						discount_percentage =
-							(discount_amount / consultation_charge) * 100;
+							total_charge ? (discount_amount / total_charge) * 100 : 0;
 						d.set_values({
 							discount_percentage: discount_percentage,
-							total_payable: consultation_charge - discount_amount,
+							total_payable: total_charge - discount_amount,
 						});
 					}
 				}
@@ -1506,6 +1538,7 @@ let make_payment = function (frm, automate_invoicing) {
 			show_message(d, message, field);
 		}
 	}
+
 };
 
 let show_message = function (d, message, field) {

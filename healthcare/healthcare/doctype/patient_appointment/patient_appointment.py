@@ -13,6 +13,7 @@ from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import (
 	add_to_date,
+	cint,
 	flt,
 	format_date,
 	get_datetime,
@@ -544,6 +545,16 @@ def invoice_appointment(appointment_name, discount_percentage=0, discount_amount
 	update_fee_validity(appointment_doc)
 
 
+
+@frappe.whitelist()
+def get_registration_fee_details(appointment_name):
+	appointment_doc = frappe.get_doc("Patient Appointment", appointment_name)
+	registration_context = get_registration_fee_context(appointment_doc)
+	return {
+		"apply_registration_fee": registration_context.get("apply_registration_fee"),
+		"registration_fee": registration_context.get("registration_fee"),
+	}
+
 def create_sales_invoice(appointment_doc, discount_percentage=0, discount_amount=0):
 	sales_invoice = frappe.new_doc("Sales Invoice")
 	sales_invoice.patient = appointment_doc.patient
@@ -556,19 +567,23 @@ def create_sales_invoice(appointment_doc, discount_percentage=0, discount_amount
 	item = sales_invoice.append("items", {})
 	item = get_appointment_item(appointment_doc, item)
 
-	paid_amount = flt(appointment_doc.paid_amount)
+	registration_context = get_registration_fee_context(appointment_doc)
+	registration_fee = flt(registration_context.get("registration_fee"))
+	paid_amount = flt(appointment_doc.paid_amount) + registration_fee
+
+	if registration_context.get("apply_registration_fee"):
+		reg_item = sales_invoice.append("items", {})
+		reg_item = get_registration_item(appointment_doc, reg_item, registration_context)
 	# Set discount amount and percentage if entered in payment popup
 	if flt(discount_percentage):
 		sales_invoice.additional_discount_percentage = flt(discount_percentage)
-		paid_amount = flt(appointment_doc.paid_amount) - (
-			flt(appointment_doc.paid_amount) * (flt(discount_percentage) / 100)
-		)
+		paid_amount = paid_amount - (paid_amount * (flt(discount_percentage) / 100))
 	if flt(discount_amount):
 		sales_invoice.discount_amount = flt(discount_amount)
-		paid_amount = flt(appointment_doc.paid_amount) - flt(discount_amount)
+		paid_amount = paid_amount - flt(discount_amount)
 
 	# Add payments if payment details are supplied else proceed to create invoice as Unpaid
-	if appointment_doc.mode_of_payment and appointment_doc.paid_amount:
+	if appointment_doc.mode_of_payment and paid_amount:
 		sales_invoice.is_pos = 1
 		payment = sales_invoice.append("payments", {})
 		payment.mode_of_payment = appointment_doc.mode_of_payment
@@ -631,6 +646,75 @@ def get_appointment_item(appointment_doc, item):
 	return item
 
 
+
+def get_registration_item(appointment_doc, item, registration_context):
+	item.item_code = registration_context.get("registration_item")
+	item.description = _("Registration Charges")
+	item.income_account = get_income_account(appointment_doc.practitioner, appointment_doc.company)
+	item.cost_center = frappe.get_cached_value("Company", appointment_doc.company, "cost_center")
+	item.rate = flt(registration_context.get("registration_fee"))
+	item.amount = flt(registration_context.get("registration_fee"))
+	item.qty = 1
+	item.reference_dt = "Patient"
+	item.reference_dn = appointment_doc.patient
+	return item
+
+
+def get_registration_fee_context(appointment_doc):
+	settings = get_registration_fee_settings()
+	if not settings.get("include_registration_fee"):
+		return {"apply_registration_fee": False, "registration_fee": 0, "registration_item": None}
+
+	if not settings.get("reg_item") or not flt(settings.get("reg_fee")):
+		return {"apply_registration_fee": False, "registration_fee": 0, "registration_item": None}
+
+	is_new_patient = check_is_new_patient_by_invoice(appointment_doc.patient)
+	if not is_new_patient:
+		return {"apply_registration_fee": False, "registration_fee": 0, "registration_item": None}
+
+	return {
+		"apply_registration_fee": True,
+		"registration_fee": flt(settings.get("reg_fee")),
+		"registration_item": settings.get("reg_item"),
+	}
+
+
+def get_registration_fee_settings():
+	settings = {"include_registration_fee": 0, "reg_item": None, "reg_fee": 0}
+	try:
+		settings["include_registration_fee"] = cint(
+			frappe.db.get_single_value("Healthcare Settings", "include_registration_fee")
+		)
+		settings["reg_item"] = frappe.db.get_single_value("Healthcare Settings", "reg_item")
+		settings["reg_fee"] = flt(frappe.db.get_single_value("Healthcare Settings", "reg_fee"))
+	except Exception:
+		# Custom fields may not exist in all sites.
+		return {"include_registration_fee": 0, "reg_item": None, "reg_fee": 0}
+	return settings
+
+
+def check_is_new_patient_by_invoice(patient):
+	patient_name, mobile = frappe.db.get_value("Patient", patient, ["patient_name", "mobile"])
+	patient_name = patient_name or ""
+	mobile = mobile or ""
+
+	match_conditions = ["si.patient = %(patient)s"]
+	if patient_name and mobile:
+		match_conditions.append("(p.patient_name = %(patient_name)s and ifnull(p.mobile, '') = %(mobile)s)")
+
+	has_submitted_invoice = frappe.db.sql(
+		f"""
+		SELECT si.name
+		FROM `tabSales Invoice` si
+		LEFT JOIN `tabPatient` p ON p.name = si.patient
+		WHERE si.docstatus = 1
+			AND ({' OR '.join(match_conditions)})
+		LIMIT 1
+		""",
+		{"patient": patient, "patient_name": patient_name, "mobile": mobile},
+	)
+	return not bool(has_submitted_invoice)
+
 def cancel_appointment(appointment_id):
 	appointment = frappe.get_doc("Patient Appointment", appointment_id)
 
@@ -674,7 +758,20 @@ def cancel_appointment(appointment_id):
 
 def cancel_sales_invoice(sales_invoice):
 	if frappe.db.get_single_value("Healthcare Settings", "show_payment_popup"):
-		if len(sales_invoice.items) == 1:
+		has_appointment_reference_item = any(
+			item.reference_dt == "Patient Appointment" and item.reference_dn == sales_invoice.appointment
+			for item in sales_invoice.items
+		)
+		has_other_references = any(
+			(item.reference_dt or item.reference_dn)
+			and not (
+				(item.reference_dt == "Patient Appointment" and item.reference_dn == sales_invoice.appointment)
+				or (item.reference_dt == "Patient" and item.reference_dn == sales_invoice.patient)
+			)
+			for item in sales_invoice.items
+		)
+
+		if has_appointment_reference_item and not has_other_references:
 			if sales_invoice.docstatus.is_submitted():
 				sales_invoice.cancel()
 			return True

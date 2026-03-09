@@ -20,6 +20,9 @@
   "enable_free_follow_ups",
   "max_visits",
   "valid_days",
+  "include_registration_fee",
+  "reg_item",
+  "reg_fee",
   "inpatient_settings_section",
   "allow_discharge_despite_unbilled_services",
   "allow_discharge_despite_pending_healthcare_services",
@@ -509,11 +512,34 @@
    "label": "Registration Item",
    "mandatory_depends_on": "eval:doc.collect_registration_fee == 1",
    "options": "Item"
+  },
+  {
+   "default": "0",
+   "description": "Checking this will merge the registration fee with consultation fee for new patient.",
+   "fieldname": "include_registration_fee",
+   "fieldtype": "Check",
+   "label": "Include Registration Fee with Consultation fee"
+  },
+  {
+   "depends_on": "eval:doc.include_registration_fee==1",
+   "fieldname": "reg_item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Registration Item",
+   "mandatory_depends_on": "eval:doc.include_registration_fee==1",
+   "options": "Item"
+  },
+  {
+   "depends_on": "eval:doc.include_registration_fee==1",
+   "fieldname": "reg_fee",
+   "fieldtype": "Currency",
+   "label": "Registration Fee",
+   "mandatory_depends_on": "eval:doc.include_registration_fee==1"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2025-12-25 09:36:33.073374",
+ "modified": "2026-03-09 09:51:12.770033",
  "modified_by": "Administrator",
  "module": "Healthcare",
  "name": "Healthcare Settings",
