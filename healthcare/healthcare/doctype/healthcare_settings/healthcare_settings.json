@@ -515,7 +515,7 @@
   },
   {
    "default": "0",
-   "description": "Checking this will merge the registration fee with consultation fee for new patient.",
+   "description": "If enabled, new patients will be created in active state and the registration fee will be added together with the consultation fee in a single Sales Invoice instead of creating a separate registration invoice.",
    "fieldname": "include_registration_fee",
    "fieldtype": "Check",
    "label": "Include Registration Fee with Consultation fee"
@@ -539,7 +539,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-03-09 09:51:12.770033",
+ "modified": "2026-03-09 14:14:03.585493",
  "modified_by": "Administrator",
  "module": "Healthcare",
  "name": "Healthcare Settings",
