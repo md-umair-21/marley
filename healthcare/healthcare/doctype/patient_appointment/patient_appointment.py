@@ -546,7 +546,7 @@ def invoice_appointment(appointment_name, discount_percentage=0, discount_amount
 
 
 @frappe.whitelist()
-def get_registration_fee_details(appointment_name):
+def get_registration_fee_details(appointment_name: str) -> dict:
 	appointment_doc = frappe.get_doc("Patient Appointment", appointment_name)
 	registration_context = get_registration_fee_context(appointment_doc)
 	return {
