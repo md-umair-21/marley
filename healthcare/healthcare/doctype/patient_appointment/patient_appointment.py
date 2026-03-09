@@ -694,24 +694,12 @@ def get_registration_fee_settings():
 
 
 def check_is_new_patient_by_invoice(patient):
-	patient_name, mobile = frappe.db.get_value("Patient", patient, ["patient_name", "mobile"])
-	patient_name = patient_name or ""
-	mobile = mobile or ""
-
-	match_conditions = ["si.patient = %(patient)s"]
-	if patient_name and mobile:
-		match_conditions.append("(p.patient_name = %(patient_name)s and ifnull(p.mobile, '') = %(mobile)s)")
-
-	has_submitted_invoice = frappe.db.sql(
-		f"""
-		SELECT si.name
-		FROM `tabSales Invoice` si
-		LEFT JOIN `tabPatient` p ON p.name = si.patient
-		WHERE si.docstatus = 1
-			AND ({' OR '.join(match_conditions)})
-		LIMIT 1
-		""",
-		{"patient": patient, "patient_name": patient_name, "mobile": mobile},
+	has_submitted_invoice = frappe.db.exists(
+		"Sales Invoice",
+		{
+			"docstatus": 1,
+			"patient": patient,
+		},
 	)
 	return not bool(has_submitted_invoice)
 
