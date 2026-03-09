@@ -68,6 +68,7 @@
   "section_break_3",
   "appointment_based_on_check_in",
   "position_in_queue",
+  "token_number",
   "column_break_wicc",
   "reminded",
   "appointment_notes_section",
@@ -556,6 +557,15 @@
    "read_only": 1,
    "report_hide": 1,
    "search_index": 1
+  },
+  {
+   "depends_on": "eval:doc.appointment_based_on_check_in",
+   "description": "Token number assigned when the appointment is booked for queue-based consultations. Visible only when Appointment Based on Check-In is checked.",
+   "fieldname": "token_number",
+   "fieldtype": "Int",
+   "label": "Token Number",
+   "non_negative": 1,
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
@@ -576,7 +586,7 @@
    "link_fieldname": "reference_name"
   }
  ],
- "modified": "2025-12-25 09:36:33.925751",
+ "modified": "2026-03-09 15:01:42.819402",
  "modified_by": "Administrator",
  "module": "Healthcare",
  "name": "Patient Appointment",

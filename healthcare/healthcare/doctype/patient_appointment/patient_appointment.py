@@ -58,6 +58,7 @@ class PatientAppointment(Document):
 		self.set_status()
 		self.set_title()
 		self.update_event()
+		self.set_token_number()
 		self.set_position_in_queue()
 
 	def on_update(self):
@@ -459,6 +460,45 @@ class PatientAppointment(Document):
 				event_doc.save(ignore_permissions=True)
 				event_doc.reload()
 				self.google_meet_link = event_doc.google_meet_link
+
+	def set_token_number(self):
+		from frappe.query_builder.functions import Max
+
+		if not self.meta.has_field("token_number"):
+			return
+
+		if not self.appointment_based_on_check_in or self.token_number:
+			return
+
+		if not self.appointment_date:
+			return
+
+		appointment = frappe.qb.DocType("Patient Appointment")
+		query = (
+			frappe.qb.from_(appointment)
+			.select(Max(appointment.token_number).as_("max_token"))
+			.where(
+				(appointment.appointment_based_on_check_in == 1)
+				& (appointment.name != self.name)
+				& (appointment.appointment_date == self.appointment_date)
+			)
+		)
+
+		if self.appointment_for == "Practitioner":
+			query = query.where(
+				(appointment.practitioner == self.practitioner)
+				& (appointment.appointment_time == self.appointment_time)
+				& (appointment.service_unit == self.service_unit)
+			)
+		else:
+			if self.service_unit:
+				query = query.where(appointment.service_unit == self.service_unit)
+			if self.department:
+				query = query.where(appointment.department == self.department)
+
+		result = query.run(as_dict=True)
+		max_token = result[0]["max_token"] if result and result[0].get("max_token") else 0
+		self.token_number = max_token + 1
 
 	def set_position_in_queue(self):
 		from frappe.query_builder.functions import Max
