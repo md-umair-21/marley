@@ -545,7 +545,6 @@ def invoice_appointment(appointment_name, discount_percentage=0, discount_amount
 	update_fee_validity(appointment_doc)
 
 
-
 @frappe.whitelist()
 def get_registration_fee_details(appointment_name):
 	appointment_doc = frappe.get_doc("Patient Appointment", appointment_name)
@@ -554,6 +553,7 @@ def get_registration_fee_details(appointment_name):
 		"apply_registration_fee": registration_context.get("apply_registration_fee"),
 		"registration_fee": registration_context.get("registration_fee"),
 	}
+
 
 def create_sales_invoice(appointment_doc, discount_percentage=0, discount_amount=0):
 	sales_invoice = frappe.new_doc("Sales Invoice")
@@ -578,9 +578,11 @@ def create_sales_invoice(appointment_doc, discount_percentage=0, discount_amount
 	if flt(discount_percentage):
 		sales_invoice.additional_discount_percentage = flt(discount_percentage)
 		paid_amount = paid_amount - (paid_amount * (flt(discount_percentage) / 100))
+		paid_amount = max(0, paid_amount)
 	if flt(discount_amount):
 		sales_invoice.discount_amount = flt(discount_amount)
 		paid_amount = paid_amount - flt(discount_amount)
+		paid_amount = max(0, paid_amount)
 
 	# Add payments if payment details are supplied else proceed to create invoice as Unpaid
 	if appointment_doc.mode_of_payment and paid_amount:
@@ -646,7 +648,6 @@ def get_appointment_item(appointment_doc, item):
 	return item
 
 
-
 def get_registration_item(appointment_doc, item, registration_context):
 	item.item_code = registration_context.get("registration_item")
 	item.description = _("Registration Charges")
@@ -705,6 +706,7 @@ def check_is_new_patient_by_invoice(patient):
 		},
 	)
 	return not bool(has_submitted_invoice)
+
 
 def cancel_appointment(appointment_id):
 	appointment = frappe.get_doc("Patient Appointment", appointment_id)
@@ -769,9 +771,7 @@ def cancel_sales_invoice(sales_invoice, appointment_name=None):
 		for item in sales_invoice.items
 	)
 	has_other_references = any(
-		not (
-			item.reference_dt == "Patient Appointment" and item.reference_dn == appointment_name
-		)
+		not (item.reference_dt == "Patient Appointment" and item.reference_dn == appointment_name)
 		for item in sales_invoice.items
 	)
 

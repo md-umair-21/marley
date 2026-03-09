@@ -30,10 +30,29 @@ class HealthcareSettings(Document):
 				frappe.throw(_("Registration Fee cannot be negative or zero"))
 
 
-		# Custom registration fee fields: disallow negative values.
-		if self.meta.has_field("include_registration_fee") and self.meta.has_field("reg_fee"):
-			if self.get("include_registration_fee") and self.get("reg_fee") is not None and self.get("reg_fee") <= 0:
-				frappe.throw(_("Registration Fee cannot be negative or zero"))
+		# registration fee fields: validate required service item and fee.
+		if (
+			self.meta.has_field("include_registration_fee")
+			and self.meta.has_field("reg_fee")
+			and self.meta.has_field("reg_item")
+			and self.get("include_registration_fee")
+		):
+			if not self.get("reg_item"):
+				frappe.throw(_("Please set a Registration Item"))
+
+			if not frappe.db.exists("Item", self.get("reg_item")):
+				frappe.throw(_("Registration Item {0} does not exist").format(self.get("reg_item")))
+
+			item_meta = frappe.get_meta("Item")
+			item_fields = ["is_stock_item"]
+			if item_meta.has_field("has_stock"):
+				item_fields.append("has_stock")
+			item_values = frappe.db.get_value("Item", self.get("reg_item"), item_fields, as_dict=True) or {}
+			if item_values.get("is_stock_item") or item_values.get("has_stock"):
+				frappe.throw(_("Configure a service Item for {0}").format(self.get("reg_item")))
+
+			if self.get("reg_fee") is not None and self.get("reg_fee") < 0:
+				frappe.throw(_("Registration Fee cannot be less than 0"))
 
 		if self.inpatient_visit_charge_item:
 			validate_service_item(self.inpatient_visit_charge_item)

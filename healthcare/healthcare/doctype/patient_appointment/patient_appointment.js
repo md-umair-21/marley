@@ -1383,7 +1383,6 @@ let make_payment = function (frm, automate_invoicing) {
 		}
 	}
 
-
 	async function show_payment_dialog(frm, fields) {
 		let registration_fee = 0;
 		let registration_data = (
@@ -1521,13 +1520,13 @@ let make_payment = function (frm, automate_invoicing) {
 			} else if (field === "discount_amount") {
 				if (total_charge < discount_amount || discount_amount < 0) {
 					d.get_primary_btn().attr("disabled", true);
-					message =
-						"Discount amount should not be more than Total Charge";
+					message = "Discount amount should not be more than Total Charge";
 				} else {
 					d.get_primary_btn().attr("disabled", false);
 					if (!frm.via_discount_percentage) {
-						discount_percentage =
-							total_charge ? (discount_amount / total_charge) * 100 : 0;
+						discount_percentage = total_charge 
+							? (discount_amount / total_charge) * 100 
+							: 0;
 						d.set_values({
 							discount_percentage: discount_percentage,
 							total_payable: total_charge - discount_amount,
@@ -1538,7 +1537,6 @@ let make_payment = function (frm, automate_invoicing) {
 			show_message(d, message, field);
 		}
 	}
-
 };
 
 let show_message = function (d, message, field) {
