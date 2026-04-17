@@ -3,17 +3,11 @@
 
 
 import frappe
-from frappe.tests import IntegrationTestCase
 
-from healthcare.healthcare.doctype.patient_appointment.test_patient_appointment import (
-	create_clinical_procedure_template,
-	create_healthcare_docs,
-)
-
-EXTRA_TEST_RECORD_DEPENDENCIES = ["Item"]
+from healthcare.tests.utils import HealthcareTestSuite
 
 
-class TestClinicalProcedure(IntegrationTestCase):
+class TestClinicalProcedure(HealthcareTestSuite):
 	def test_disable_procedure_template_item(self):
 		procedure_template = create_clinical_procedure_template()
 		self.assertTrue(frappe.db.exists("Item", procedure_template.item))
@@ -23,8 +17,11 @@ class TestClinicalProcedure(IntegrationTestCase):
 		self.assertEqual(frappe.db.get_value("Item", procedure_template.item, "disabled"), 1)
 
 	def test_consumables(self):
-		patient, practitioner = create_healthcare_docs()
-		procedure_template = create_clinical_procedure_template()
+		patient = frappe.get_list("Patient", pluck="name")[0]
+		practitioner = frappe.get_list("Healthcare Practitioner", pluck="name")[0]
+
+		procedure_template = frappe.get_list("Clinical Procedure Template", pluck="name")[0]
+		procedure_template = frappe.get_doc("Clinical Procedure Template", procedure_template)
 		procedure_template.consume_stock = True
 		consumable = create_consumable()
 		procedure_template.append(
@@ -54,7 +51,9 @@ class TestClinicalProcedure(IntegrationTestCase):
 		procedure_template.default_duration = 3600
 		procedure_template.consume_stock = False
 		procedure_template.save()
-		patient, practitioner = create_healthcare_docs()
+
+		patient = frappe.get_list("Patient", pluck="name")[0]
+		practitioner = frappe.get_list("Healthcare Practitioner", pluck="name")[0]
 
 		procedure = create_procedure(procedure_template, patient, practitioner)
 		self.assertTrue(procedure.planned_end_datetime)
@@ -93,3 +92,19 @@ def create_procedure(procedure_template, patient, practitioner):
 	procedure.start_time = frappe.utils.nowtime()
 	procedure.submit()
 	return procedure
+
+
+def create_clinical_procedure_template():
+	if frappe.db.exists("Clinical Procedure Template", "Knee Surgery and Rehab"):
+		return frappe.get_doc("Clinical Procedure Template", "Knee Surgery and Rehab")
+
+	template = frappe.new_doc("Clinical Procedure Template")
+	template.template = "Knee Surgery and Rehab"
+	template.item_code = "Knee Surgery and Rehab"
+	template.item_group = "Services"
+	template.is_billable = 1
+	template.description = "Knee Surgery and Rehab"
+	template.rate = 50000
+	template.save()
+
+	return template
