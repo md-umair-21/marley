@@ -1,0 +1,126 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-04-23 15:15:24.680400",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "newborn_id",
+  "gender",
+  "live_birth",
+  "stillbirth",
+  "birth_weight",
+  "birth_length",
+  "head_circumference",
+  "apgar_1_min",
+  "apgar_5_min",
+  "apgar_10_min",
+  "blood_group",
+  "nicu_required",
+  "congenital_anomalies",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "newborn_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Newborn ID"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Gender",
+   "options": "Gender",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "live_birth",
+   "fieldtype": "Check",
+   "label": "Live Birth"
+  },
+  {
+   "default": "0",
+   "fieldname": "stillbirth",
+   "fieldtype": "Check",
+   "label": "Stillbirth"
+  },
+  {
+   "fieldname": "birth_weight",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Birth Weight (kg)"
+  },
+  {
+   "fieldname": "birth_length",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Birth Length (cm)"
+  },
+  {
+   "fieldname": "head_circumference",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Head Circumference (cm)"
+  },
+  {
+   "fieldname": "apgar_1_min",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "APGAR at 1 Minute"
+  },
+  {
+   "fieldname": "apgar_5_min",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "APGAR at 5 Minutes"
+  },
+  {
+   "fieldname": "apgar_10_min",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "APGAR at 10 Minutes"
+  },
+  {
+   "fieldname": "blood_group",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Blood Group",
+   "options": "\nA+\nA-\nB+\nB-\nAB+\nAB-\nO+\nO-"
+  },
+  {
+   "default": "0",
+   "fieldname": "nicu_required",
+   "fieldtype": "Check",
+   "label": "NICU Required"
+  },
+  {
+   "fieldname": "congenital_anomalies",
+   "fieldtype": "Small Text",
+   "label": "Congenital Anomalies"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-23 17:33:45.454311",
+ "modified_by": "Administrator",
+ "module": "Healthcare",
+ "name": "Birth Newborn Detail",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

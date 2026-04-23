@@ -1,0 +1,223 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-04-23 14:09:45.487793",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_liij",
+  "amended_from",
+  "naming_series",
+  "mother_details",
+  "mother_patient",
+  "mother_name",
+  "father_name",
+  "column_break_gqka",
+  "inpatient_record",
+  "patient_encounter",
+  "company",
+  "section_delivery_details",
+  "delivery_date",
+  "delivery_time",
+  "place_of_birth",
+  "birth_facility",
+  "reference_practitioner",
+  "medical_department",
+  "column_break_tisz",
+  "delivery_type",
+  "gestational_age_weeks",
+  "is_multiple_birth",
+  "multiple_birth_type",
+  "birth_order_notes",
+  "section_newborn_details",
+  "newborn_details"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_liij",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Birth Record",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "mother_details",
+   "fieldtype": "Section Break",
+   "label": "Mother/Patient Details"
+  },
+  {
+   "fieldname": "mother_patient",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Mother Patient",
+   "options": "Patient",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "mother_patient.patient_name",
+   "fieldname": "mother_name",
+   "fieldtype": "Data",
+   "label": "Mother Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "father_name",
+   "fieldtype": "Data",
+   "label": "Father Name"
+  },
+  {
+   "fieldname": "column_break_gqka",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "inpatient_record",
+   "fieldtype": "Link",
+   "label": "Inpatient Record",
+   "options": "Inpatient Record"
+  },
+  {
+   "fieldname": "patient_encounter",
+   "fieldtype": "Link",
+   "label": "Patient Encounter",
+   "options": "Patient Encounter"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "section_delivery_details",
+   "fieldtype": "Section Break",
+   "label": "Delivery Details"
+  },
+  {
+   "fieldname": "delivery_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Delivery Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "delivery_time",
+   "fieldtype": "Time",
+   "label": "Delivery Time"
+  },
+  {
+   "fieldname": "place_of_birth",
+   "fieldtype": "Data",
+   "label": "Place of Birth"
+  },
+  {
+   "fieldname": "birth_facility",
+   "fieldtype": "Link",
+   "label": "Birth Facility",
+   "options": "Healthcare Service Unit"
+  },
+  {
+   "fieldname": "column_break_tisz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "delivery_type",
+   "fieldtype": "Select",
+   "label": "Delivery Type",
+   "options": "\nNormal Vaginal Delivery\nAssisted Vaginal Delivery\nCaesarean Section\nVBAC\nOther"
+  },
+  {
+   "fieldname": "gestational_age_weeks",
+   "fieldtype": "Int",
+   "label": "Gestational Age (Weeks)"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_multiple_birth",
+   "fieldtype": "Check",
+   "label": "Is Multiple Birth"
+  },
+  {
+   "fieldname": "birth_order_notes",
+   "fieldtype": "Small Text",
+   "label": "Delivery Notes"
+  },
+  {
+   "depends_on": "eval:doc.is_multiple_birth==1",
+   "fieldname": "multiple_birth_type",
+   "fieldtype": "Select",
+   "label": "Multiple Birth Type",
+   "options": "\nTwin\nTriplet\nQuadruplet\nOther"
+  },
+  {
+   "fieldname": "reference_practitioner",
+   "fieldtype": "Link",
+   "label": "Healthcare Practitioner",
+   "options": "Healthcare Practitioner",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "reference_practitioner.department",
+   "fieldname": "medical_department",
+   "fieldtype": "Link",
+   "label": "Medical Department",
+   "options": "Medical Department"
+  },
+  {
+   "fieldname": "section_newborn_details",
+   "fieldtype": "Section Break",
+   "label": "Newborn Details"
+  },
+  {
+   "fieldname": "newborn_details",
+   "fieldtype": "Table",
+   "label": "Newborn Details",
+   "options": "Birth Newborn Detail",
+   "reqd": 1
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "HLC-BR-.YYYY.-",
+   "reqd": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-04-23 17:46:19.691124",
+ "modified_by": "Administrator",
+ "module": "Healthcare",
+ "name": "Birth Record",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
