@@ -19,17 +19,16 @@
   "company",
   "section_delivery_details",
   "delivery_date",
-  "delivery_time",
   "place_of_birth",
   "birth_facility",
-  "reference_practitioner",
+  "practitioner",
   "medical_department",
   "column_break_tisz",
   "delivery_type",
   "gestational_age_weeks",
   "is_multiple_birth",
   "multiple_birth_type",
-  "birth_order_notes",
+  "delivery_notes",
   "section_newborn_details",
   "newborn_details"
  ],
@@ -108,11 +107,6 @@
    "reqd": 1
   },
   {
-   "fieldname": "delivery_time",
-   "fieldtype": "Time",
-   "label": "Delivery Time"
-  },
-  {
    "fieldname": "place_of_birth",
    "fieldtype": "Data",
    "label": "Place of Birth"
@@ -131,7 +125,8 @@
    "fieldname": "delivery_type",
    "fieldtype": "Select",
    "label": "Delivery Type",
-   "options": "\nNormal Vaginal Delivery\nAssisted Vaginal Delivery\nCaesarean Section\nVBAC\nOther"
+   "options": "\nNormal Delivery\nAssisted Delivery\nCaesarean Section\nVBAC\nOther",
+   "reqd": 1
   },
   {
    "fieldname": "gestational_age_weeks",
@@ -145,23 +140,11 @@
    "label": "Is Multiple Birth"
   },
   {
-   "fieldname": "birth_order_notes",
-   "fieldtype": "Small Text",
-   "label": "Delivery Notes"
-  },
-  {
    "depends_on": "eval:doc.is_multiple_birth==1",
    "fieldname": "multiple_birth_type",
    "fieldtype": "Select",
    "label": "Multiple Birth Type",
    "options": "\nTwin\nTriplet\nQuadruplet\nOther"
-  },
-  {
-   "fieldname": "reference_practitioner",
-   "fieldtype": "Link",
-   "label": "Healthcare Practitioner",
-   "options": "Healthcare Practitioner",
-   "reqd": 1
   },
   {
    "fetch_from": "reference_practitioner.department",
@@ -188,13 +171,25 @@
    "label": "Naming Series",
    "options": "HLC-BR-.YYYY.-",
    "reqd": 1
+  },
+  {
+   "fieldname": "delivery_notes",
+   "fieldtype": "Small Text",
+   "label": "Delivery Notes"
+  },
+  {
+   "fieldname": "practitioner",
+   "fieldtype": "Link",
+   "label": "Healthcare Practitioner",
+   "options": "Healthcare Practitioner",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-04-23 17:46:19.691124",
+ "modified": "2026-04-24 09:40:44.561145",
  "modified_by": "Administrator",
  "module": "Healthcare",
  "name": "Birth Record",
@@ -202,6 +197,7 @@
  "owner": "Administrator",
  "permissions": [
   {
+   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -210,6 +206,18 @@
    "read": 1,
    "report": 1,
    "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Healthcare Administrator",
    "share": 1,
    "submit": 1,
    "write": 1

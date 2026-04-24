@@ -8,6 +8,7 @@
  "field_order": [
   "newborn_id",
   "gender",
+  "birth_time",
   "live_birth",
   "stillbirth",
   "birth_weight",
@@ -52,19 +53,20 @@
    "fieldname": "birth_weight",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Birth Weight (kg)"
+   "label": "Birth Weight (In Kilogram)",
+   "reqd": 1
   },
   {
    "fieldname": "birth_length",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Birth Length (cm)"
+   "label": "Birth Length (In Centimeter)"
   },
   {
    "fieldname": "head_circumference",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Head Circumference (cm)"
+   "label": "Head Circumference (In Centimeter)"
   },
   {
    "fieldname": "apgar_1_min",
@@ -106,13 +108,20 @@
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
+  },
+  {
+   "fieldname": "birth_time",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "Birth Time",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-04-23 17:33:45.454311",
+ "modified": "2026-04-24 09:36:15.242695",
  "modified_by": "Administrator",
  "module": "Healthcare",
  "name": "Birth Newborn Detail",
