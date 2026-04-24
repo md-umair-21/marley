@@ -1,6 +1,5 @@
 {
  "actions": [],
- "allow_rename": 1,
  "autoname": "naming_series:",
  "creation": "2026-04-23 14:09:45.487793",
  "doctype": "DocType",
@@ -147,7 +146,7 @@
    "options": "\nTwin\nTriplet\nQuadruplet\nOther"
   },
   {
-   "fetch_from": "reference_practitioner.department",
+   "fetch_from": "practitioner.department",
    "fieldname": "medical_department",
    "fieldtype": "Link",
    "label": "Medical Department",
@@ -189,7 +188,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-04-24 10:13:36.761572",
+ "modified": "2026-04-24 11:15:49.964898",
  "modified_by": "Administrator",
  "module": "Healthcare",
  "name": "Birth Record",

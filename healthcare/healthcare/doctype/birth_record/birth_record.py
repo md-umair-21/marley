@@ -18,9 +18,9 @@ class BirthRecord(Document):
 
 		if live_birth == stillbirth:
 			frappe.throw(
-				frappe._("Select exactly one birth outcome: either Live Birth or Stillbirth. (Row {0})").format(
-					newborn_detail.idx
-				)
+				frappe._(
+					"Select exactly one birth outcome: either Live Birth or Stillbirth. (Row {0})"
+				).format(newborn_detail.idx)
 			)
 
 	def validate_apgar_scores(self, newborn_detail):
