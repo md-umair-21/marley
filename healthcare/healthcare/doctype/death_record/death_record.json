@@ -1,0 +1,229 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-04-24 10:20:41.873216",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_lp2e",
+  "amended_from",
+  "naming_series",
+  "section_patient_details",
+  "patient",
+  "patient_name",
+  "inpatient_record",
+  "patient_encounter",
+  "company",
+  "section_death_details",
+  "date_of_death",
+  "time_of_death",
+  "place_of_death",
+  "practitioner",
+  "medical_department",
+  "column_break_unnq",
+  "death_facility",
+  "death_type",
+  "manner_of_death",
+  "section_cause_of_death",
+  "immediate_cause_of_death",
+  "underlying_cause_of_death",
+  "other_conditions",
+  "section_informant",
+  "informant_name",
+  "informant_relation",
+  "informant_contact"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_lp2e",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Death Record",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Naming Series",
+   "options": "HLC-DR-.YYYY.-",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_patient_details",
+   "fieldtype": "Section Break",
+   "label": "Patient Details"
+  },
+  {
+   "fieldname": "patient",
+   "fieldtype": "Link",
+   "label": "Patient",
+   "options": "Patient",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "patient.patient_name",
+   "fieldname": "patient_name",
+   "fieldtype": "Data",
+   "label": "Patient Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inpatient_record",
+   "fieldtype": "Link",
+   "label": "Inpatient Record",
+   "options": "Inpatient Record"
+  },
+  {
+   "fieldname": "patient_encounter",
+   "fieldtype": "Link",
+   "label": "Patient Encounter",
+   "options": "Patient Encounter"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "section_death_details",
+   "fieldtype": "Section Break",
+   "label": "Death Details"
+  },
+  {
+   "fieldname": "date_of_death",
+   "fieldtype": "Date",
+   "label": "Date of Death",
+   "reqd": 1
+  },
+  {
+   "fieldname": "time_of_death",
+   "fieldtype": "Time",
+   "label": "Time of Death"
+  },
+  {
+   "fieldname": "place_of_death",
+   "fieldtype": "Data",
+   "label": "Place of Death"
+  },
+  {
+   "fieldname": "death_facility",
+   "fieldtype": "Link",
+   "label": "Death Facility",
+   "options": "Healthcare Service Unit"
+  },
+  {
+   "fieldname": "death_type",
+   "fieldtype": "Select",
+   "label": "Death Type",
+   "options": "\nNatural\nAccidental\nBrought Dead\nMedico-Legal\nUnknown"
+  },
+  {
+   "fieldname": "manner_of_death",
+   "fieldtype": "Select",
+   "label": "Manner of Death",
+   "options": "\nNatural\nAccident\nSuicide\nHomicide\nUnknown"
+  },
+  {
+   "fieldname": "section_cause_of_death",
+   "fieldtype": "Section Break",
+   "label": "Cause of Death"
+  },
+  {
+   "fieldname": "immediate_cause_of_death",
+   "fieldtype": "Small Text",
+   "label": "Immediate Cause of Death",
+   "reqd": 1
+  },
+  {
+   "fieldname": "underlying_cause_of_death",
+   "fieldtype": "Small Text",
+   "label": "Underlying Cause of Death"
+  },
+  {
+   "fieldname": "other_conditions",
+   "fieldtype": "Small Text",
+   "label": "Other Conditions"
+  },
+  {
+   "fieldname": "practitioner",
+   "fieldtype": "Link",
+   "label": "Healthcare Practitioner",
+   "options": "Healthcare Practitioner",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "practitioner.department",
+   "fieldname": "medical_department",
+   "fieldtype": "Link",
+   "label": "Medical Department",
+   "options": "Medical Department"
+  },
+  {
+   "fieldname": "column_break_unnq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_informant",
+   "fieldtype": "Section Break",
+   "label": "Informant Details"
+  },
+  {
+   "fieldname": "informant_name",
+   "fieldtype": "Data",
+   "label": "Informant Name"
+  },
+  {
+   "fieldname": "informant_relation",
+   "fieldtype": "Data",
+   "label": "Informant Relation"
+  },
+  {
+   "fieldname": "informant_contact",
+   "fieldtype": "Data",
+   "label": "Informant Contact"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-04-24 10:41:01.229183",
+ "modified_by": "Administrator",
+ "module": "Healthcare",
+ "name": "Death Record",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "select": 1,
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
