@@ -17,7 +17,11 @@ class BirthRecord(Document):
 		stillbirth = cint(newborn_detail.stillbirth)
 
 		if live_birth == stillbirth:
-			frappe.throw("Select exactly one birth outcome: either Live Birth or Stillbirth.")
+			frappe.throw(
+				frappe._("Select exactly one birth outcome: either Live Birth or Stillbirth. (Row {0})").format(
+					newborn_detail.idx
+				)
+			)
 
 	def validate_apgar_scores(self, newborn_detail):
 		for fieldname in ("apgar_1_min", "apgar_5_min", "apgar_10_min"):
@@ -26,12 +30,24 @@ class BirthRecord(Document):
 				continue
 
 			if isinstance(value, bool):
-				frappe.throw(f"Invalid {fieldname}: {value}. Expected an integer between 0 and 10.")
+				frappe.throw(
+					frappe._("Invalid {0}: {1}. Expected an integer between 0 and 10. (Row {2})").format(
+						fieldname, value, newborn_detail.idx
+					)
+				)
 
 			try:
 				int_value = int(value)
 			except (TypeError, ValueError):
-				frappe.throw(f"Invalid {fieldname}: {value}. Expected an integer between 0 and 10.")
+				frappe.throw(
+					frappe._("Invalid {0}: {1}. Expected an integer between 0 and 10. (Row {2})").format(
+						fieldname, value, newborn_detail.idx
+					)
+				)
 
 			if str(value).strip() != str(int_value) or not 0 <= int_value <= 10:
-				frappe.throw(f"Invalid {fieldname}: {value}. Expected an integer between 0 and 10.")
+				frappe.throw(
+					frappe._("Invalid {0}: {1}. Expected an integer between 0 and 10. (Row {2})").format(
+						fieldname, value, newborn_detail.idx
+					)
+				)
