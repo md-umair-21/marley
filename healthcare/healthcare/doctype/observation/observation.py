@@ -136,19 +136,26 @@ class Observation(Document):
 
 @frappe.whitelist()
 def get_observation_details(docname):
-	reference = frappe.get_value("Diagnostic Report", docname, ["docname", "ref_doctype"], as_dict=True)
+	reference = frappe.get_value(
+		"Diagnostic Report", docname, ["docname", "ref_doctype", "observation_category"], as_dict=True
+	)
 	observation = []
+	observation_category = reference.get("observation_category")
 
 	if reference.get("ref_doctype") == "Sales Invoice":
+		filters = {
+			"sales_invoice": reference.get("docname"),
+			"parent_observation": "",
+			"status": ["!=", "Cancelled"],
+			"docstatus": ["!=", 2],
+		}
+		if observation_category:
+			filters["observation_category"] = observation_category
+
 		observation = frappe.get_list(
 			"Observation",
 			fields=["*"],
-			filters={
-				"sales_invoice": reference.get("docname"),
-				"parent_observation": "",
-				"status": ["!=", "Cancelled"],
-				"docstatus": ["!=", 2],
-			},
+			filters=filters,
 			order_by="creation",
 		)
 	elif reference.get("ref_doctype") == "Patient Encounter":
@@ -163,15 +170,19 @@ def get_observation_details(docname):
 			order_by="creation",
 			pluck="name",
 		)
+		filters = {
+			"service_request": ["in", service_requests],
+			"parent_observation": "",
+			"status": ["!=", "Cancelled"],
+			"docstatus": ["!=", 2],
+		}
+		if observation_category:
+			filters["observation_category"] = observation_category
+
 		observation = frappe.get_list(
 			"Observation",
 			fields=["*"],
-			filters={
-				"service_request": ["in", service_requests],
-				"parent_observation": "",
-				"status": ["!=", "Cancelled"],
-				"docstatus": ["!=", 2],
-			},
+			filters=filters,
 			order_by="creation",
 		)
 
@@ -530,7 +541,13 @@ def set_diagnostic_report_status(doc):
 			)
 
 		diagnostic_report = frappe.db.get_value(
-			"Diagnostic Report", {"ref_doctype": ref_doctype, "docname": ref_docname}, "name"
+			"Diagnostic Report",
+			{
+				"ref_doctype": ref_doctype,
+				"docname": ref_docname,
+				"observation_category": doc.observation_category,
+			},
+			"name",
 		)
 
 		if diagnostic_report:

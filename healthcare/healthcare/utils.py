@@ -1556,6 +1556,7 @@ def create_sample_collection_and_observation(doc):
 				"sample_qty",
 				"has_component",
 				"sample_collection_required",
+				"observation_category",
 			],
 			as_dict=True,
 		)
@@ -1578,6 +1579,7 @@ def create_sample_collection_and_observation(doc):
 			patient = grp
 		if meta.has_field("patient"):
 			sample_collection = create_sample_collection(doc, patient)
+			observation_categories = set()
 			for obs in out_data[grp]:
 				(
 					sample_collection,
@@ -1585,11 +1587,16 @@ def create_sample_collection_and_observation(doc):
 				) = insert_observation_and_sample_collection(
 					doc, patient, obs, sample_collection, obs.get("child")
 				)
+				if diag_report_required and obs.get("observation_category"):
+					observation_categories.add(obs.get("observation_category"))
 			if sample_collection and len(sample_collection.get("observation_sample_collection")) > 0:
 				sample_collection.save(ignore_permissions=True)
 
 			if diag_report_required:
-				insert_diagnostic_report(doc, patient, sample_collection.name)
+				for observation_category in observation_categories:
+					insert_diagnostic_report(
+						doc, patient, sample_collection.name, observation_category
+					)
 		else:
 			sample_collection, diag_report_required = insert_observation_and_sample_collection(
 				doc, patient, grp, sample_collection
@@ -1600,7 +1607,9 @@ def create_sample_collection_and_observation(doc):
 			sample_collection.save(ignore_permissions=True)
 
 		if diag_report_required:
-			insert_diagnostic_report(doc, patient, sample_collection.name)
+			insert_diagnostic_report(
+				doc, patient, sample_collection.name, grp.get("observation_category")
+			)
 
 
 def create_sample_collection(doc, patient):
@@ -1616,13 +1625,21 @@ def create_sample_collection(doc, patient):
 	return sample_collection
 
 
-def insert_diagnostic_report(doc, patient, sample_collection=None):
-	if not frappe.db.exists("Diagnostic Report", {"docname": doc.name}):
+def insert_diagnostic_report(doc, patient, sample_collection=None, observation_category=None):
+	if not frappe.db.exists(
+		"Diagnostic Report",
+		{
+			"ref_doctype": doc.doctype,
+			"docname": doc.name,
+			"observation_category": observation_category,
+		},
+	):
 		diagnostic_report = frappe.new_doc("Diagnostic Report")
 		diagnostic_report.company = doc.company
 		diagnostic_report.patient = patient
 		diagnostic_report.ref_doctype = doc.doctype
 		diagnostic_report.docname = doc.name
+		diagnostic_report.observation_category = observation_category
 		diagnostic_report.practitioner = doc.ref_practitioner
 		diagnostic_report.sample_collection = sample_collection
 		diagnostic_report.save(ignore_permissions=True)
