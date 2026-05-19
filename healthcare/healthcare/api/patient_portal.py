@@ -8,6 +8,9 @@ from frappe.utils import get_datetime, get_time, getdate
 
 import erpnext
 
+from healthcare.healthcare.doctype.diagnostic_report.diagnostic_report import (
+	get_observation_category_from_title,
+)
 from healthcare.healthcare.doctype.observation.observation import get_observation_reference
 from healthcare.healthcare.utils import get_appointment_billing_item_and_rate
 
@@ -256,11 +259,17 @@ def get_orders():
 
 	# Get all tests via service requests for the patients
 	tests_via_service_requests = get_data_from_service_requests(patients)
-	service_request_map = build_order_map(tests_via_service_requests)
+	service_request_reports = get_diagnostic_report_lookup(
+		"Patient Encounter", [row.order_name for row in tests_via_service_requests]
+	)
+	service_request_map = build_order_map(tests_via_service_requests, service_request_reports)
 
 	# Get all tests via sale invoice for the patients
 	tests_via_invoices = get_data_from_invoices(patients)
-	invoice_map = build_order_map(tests_via_invoices, True)
+	invoice_reports = get_diagnostic_report_lookup(
+		"Sales Invoice", [row.order_name for row in tests_via_invoices]
+	)
+	invoice_map = build_order_map(tests_via_invoices, invoice_reports, True)
 
 	all_tests = {**service_request_map, **invoice_map}
 
@@ -270,7 +279,7 @@ def get_orders():
 	return list(dict(sorted_tests).values())
 
 
-def build_order_map(orders, from_invoice=False):
+def build_order_map(orders, report_lookup, from_invoice=False):
 	orders_map = {}
 	for row in orders:
 		patient_doc = frappe.get_doc("Patient", row.patient)
@@ -291,14 +300,20 @@ def build_order_map(orders, from_invoice=False):
 				"patient_name": row.patient_name,
 				"ref_practitioner": row.ref_practitioner_name,
 				"order_date": row.order_date,
-				"diagnostic_report": row.diagnostic_report,
-				"diagnostic_report_status": row.diagnostic_report_status,
+				"diagnostic_report": None,
+				"diagnostic_report_status": None,
+				"diagnostic_reports": [],
 				"billing_status": billing_status,
 				"collection_point": row.collection_point,
 				"invoice": [],
 				"patient_image": row.patient_image,
 				"tests": [],
 			}
+
+		add_diagnostic_report_to_order(
+			orders_map[key],
+			report_lookup.get((row.order_name, row.observation_category)),
+		)
 
 		invoice = None
 		if row.billing_status in ["Invoiced", "Partly Invoiced", "Paid", "Partly Paid"]:
@@ -314,12 +329,70 @@ def build_order_map(orders, from_invoice=False):
 
 		orders_map[key]["tests"].append(build_template_dict(row))
 
+	for order in orders_map.values():
+		order["diagnostic_report_status"] = summarize_diagnostic_report_status(
+			order["diagnostic_reports"]
+		)
+		if len(order["diagnostic_reports"]) == 1:
+			order["diagnostic_report"] = order["diagnostic_reports"][0]["name"]
+
 	return orders_map
+
+
+def get_diagnostic_report_lookup(ref_doctype, docnames):
+	if not docnames:
+		return {}
+
+	report_rows = frappe.get_all(
+		"Diagnostic Report",
+		filters={"ref_doctype": ref_doctype, "docname": ["in", list(set(docnames))]},
+		fields=["name", "docname", "status", "title"],
+	)
+
+	report_lookup = {}
+	for row in report_rows:
+		observation_category = get_observation_category_from_title(row.get("title"))
+		if not observation_category:
+			continue
+		report_lookup[(row.get("docname"), observation_category)] = {
+			"name": row.get("name"),
+			"status": row.get("status"),
+			"observation_category": observation_category,
+		}
+
+	return report_lookup
+
+
+def add_diagnostic_report_to_order(order, report):
+	if not report:
+		return
+
+	if any(existing["name"] == report["name"] for existing in order["diagnostic_reports"]):
+		return
+
+	order["diagnostic_reports"].append(report)
+	order["diagnostic_reports"].sort(key=lambda item: item["observation_category"])
+
+
+def summarize_diagnostic_report_status(reports):
+	if not reports:
+		return None
+
+	statuses = {report.get("status") for report in reports if report.get("status")}
+	if len(statuses) == 1:
+		return next(iter(statuses))
+
+	if "Partially Approved" in statuses:
+		return "Partially Approved"
+	if "Open" in statuses:
+		return "Open"
+	return "Multiple"
 
 
 def build_template_dict(row):
 	test_dict = {
 		"observation_template": row.observation_template,
+		"observation_category": row.observation_category,
 		"service_request": row.get("service_request"),
 		"observation": row.observation,
 		"reference": get_observation_reference(row) if row.observation else None,
@@ -437,7 +510,6 @@ def get_data_from_service_requests(patients):
 	observation_template = frappe.qb.DocType("Observation Template")
 	sample_collection = frappe.qb.DocType("Sample Collection")
 	sample_collection_item = frappe.qb.DocType("Observation Sample Collection")
-	diagnostic_report = frappe.qb.DocType("Diagnostic Report")
 	patient = frappe.qb.DocType("Patient")
 
 	rows = (
@@ -454,8 +526,6 @@ def get_data_from_service_requests(patients):
 		.on(service_request.name == sample_collection_item.service_request)
 		.left_join(sample_collection)
 		.on(sample_collection_item.parent == sample_collection.name)
-		.left_join(diagnostic_report)
-		.on(service_request.order_group == diagnostic_report.docname)
 		.left_join(patient)
 		.on(service_request.patient == patient.name)
 		.select(
@@ -480,6 +550,7 @@ def get_data_from_service_requests(patients):
 			observation_template.permitted_data_type,
 			observation_template.sample_collection_required,
 			observation_template.has_component,
+			observation_template.observation_category,
 		)
 		.select(
 			sample_collection_item.name.as_("observation_sample_collection"),
@@ -490,10 +561,6 @@ def get_data_from_service_requests(patients):
 		.select(
 			sample_collection.status.as_("sample_collection_status"),
 			sample_collection.collection_point,
-		)
-		.select(
-			diagnostic_report.name.as_("diagnostic_report"),
-			diagnostic_report.status.as_("diagnostic_report_status"),
 		)
 		.select(
 			patient.sex.as_("gender"),
@@ -510,7 +577,6 @@ def get_data_from_service_requests(patients):
 
 
 def get_data_from_invoices(patients):
-	diagnostic_report = frappe.qb.DocType("Diagnostic Report")
 	si_item = frappe.qb.DocType("Sales Invoice Item")
 	si = frappe.qb.DocType("Sales Invoice")
 	observation = frappe.qb.DocType("Observation")
@@ -520,15 +586,13 @@ def get_data_from_invoices(patients):
 	patient = frappe.qb.DocType("Patient")
 
 	rows = (
-		frappe.qb.from_(diagnostic_report)
-		.left_join(si_item)
-		.on((diagnostic_report.docname == si_item.parent) & (si_item.reference_dn.isnull()))
+		frappe.qb.from_(si_item)
 		.left_join(si)
 		.on(si.name == si_item.parent)
 		.left_join(observation_template)
 		.on(si_item.item_code == observation_template.item)
 		.left_join(sample_collection)
-		.on(diagnostic_report.docname == sample_collection.reference_name)
+		.on(si.name == sample_collection.reference_name)
 		.left_join(sample_collection_item)
 		.on(
 			(sample_collection.name == sample_collection_item.parent)
@@ -537,7 +601,7 @@ def get_data_from_invoices(patients):
 		.left_join(observation)
 		.on(
 			(
-				(diagnostic_report.docname == observation.sales_invoice)
+				(si.name == observation.sales_invoice)
 				| (sample_collection.name == observation.reference_docname)
 			)
 			& (observation.docstatus == 1)
@@ -545,16 +609,14 @@ def get_data_from_invoices(patients):
 			& (observation_template.name == observation.observation_template)
 		)
 		.left_join(patient)
-		.on(diagnostic_report.patient == patient.name)
+		.on(si.patient == patient.name)
 		.select(
-			diagnostic_report.docname.as_("order_name"),
-			diagnostic_report.patient,
-			diagnostic_report.patient_name,
-			diagnostic_report.practitioner.as_("ref_practitioner"),
-			diagnostic_report.practitioner_name.as_("ref_practitioner_name"),
-			diagnostic_report.reference_posting_date.as_("order_date"),
-			diagnostic_report.name.as_("diagnostic_report"),
-			diagnostic_report.status.as_("diagnostic_report_status"),
+			si.name.as_("order_name"),
+			si.patient,
+			si.patient_name,
+			si.ref_practitioner.as_("ref_practitioner"),
+			si.ref_practitioner.as_("ref_practitioner_name"),
+			si.posting_date.as_("order_date"),
 		)
 		.select(
 			si.status.as_("billing_status"),
@@ -565,6 +627,7 @@ def get_data_from_invoices(patients):
 			observation_template.permitted_data_type,
 			observation_template.sample_collection_required,
 			observation_template.has_component,
+			observation_template.observation_category,
 		)
 		.select(
 			observation.name.as_("observation"),
@@ -586,10 +649,11 @@ def get_data_from_invoices(patients):
 			patient.sex.as_("gender"),
 			patient.image.as_("patient_image"),
 		)
-		.where(diagnostic_report.patient.isin(patients))
+		.where(si.patient.isin(patients))
 		.where(observation_template.name.isnotnull())
+		.where(si_item.reference_dn.isnull())
 		.where(si.docstatus == 1)
-		.orderby(diagnostic_report.reference_posting_date, order=Order.desc)
+		.orderby(si.posting_date, order=Order.desc)
 		.orderby(si_item.idx, order=Order.asc)
 	)
 

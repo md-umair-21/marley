@@ -10,6 +10,10 @@ from frappe.model.mapper import get_mapped_doc
 from frappe.utils import now_datetime
 
 from healthcare.controllers.service_request_controller import ServiceRequestController
+from healthcare.healthcare.doctype.diagnostic_report.diagnostic_report import (
+	get_diagnostic_report_name,
+	get_diagnostic_report_title,
+)
 from healthcare.healthcare.doctype.observation.observation import add_observation
 from healthcare.healthcare.doctype.observation_template.observation_template import (
 	get_observation_template_details,
@@ -344,9 +348,16 @@ def make_observation(service_request, appointment=None):
 		else:
 			observation = create_observation(service_request, appointment)
 
-	diagnostic_report = frappe.db.exists("Diagnostic Report", {"docname": service_request.order_group})
+	observation_category = frappe.db.get_value(
+		"Observation Template", service_request.template_dn, "observation_category"
+	)
+	diagnostic_report = get_diagnostic_report_name(
+		service_request.source_doc, service_request.order_group, observation_category
+	)
 	if not diagnostic_report:
-		insert_diagnostic_report(service_request, sample_collection.name if sample_collection else None)
+		diagnostic_report = insert_diagnostic_report(
+			service_request, sample_collection.name if sample_collection else None, observation_category
+		)
 
 	if sample_collection:
 		if diagnostic_report and not frappe.db.get_value(
@@ -401,7 +412,7 @@ def create_observation(service_request, appointment=None):
 	return doc
 
 
-def insert_diagnostic_report(doc, sample_collection=None):
+def insert_diagnostic_report(doc, sample_collection=None, observation_category=None):
 	diagnostic_report = frappe.new_doc("Diagnostic Report")
 	diagnostic_report.company = doc.company
 	diagnostic_report.patient = doc.patient
@@ -409,7 +420,13 @@ def insert_diagnostic_report(doc, sample_collection=None):
 	diagnostic_report.docname = doc.order_group
 	diagnostic_report.practitioner = doc.practitioner
 	diagnostic_report.sample_collection = sample_collection
+	patient_doc = frappe.get_doc("Patient", doc.patient)
+	age = patient_doc.calculate_age().get("age_in_string") if patient_doc.dob else ""
+	diagnostic_report.title = get_diagnostic_report_title(
+		patient_doc.patient_name, age, patient_doc.sex, observation_category
+	)
 	diagnostic_report.save(ignore_permissions=True)
+	return diagnostic_report.name
 
 
 def check_observation_sample_exist(service_request):

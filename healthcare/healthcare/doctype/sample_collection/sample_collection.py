@@ -67,12 +67,13 @@ class SampleCollection(Document):
 						"Service Request", obs.get("service_request"), "status", "active-Request Status"
 					)
 
-		exist_diagnostic_report = frappe.db.exists(
+		existing_diagnostic_reports = frappe.get_all(
 			"Diagnostic Report",
-			{"sample_collection": self.name},
+			filters={"sample_collection": self.name},
+			pluck="name",
 		)
-		if exist_diagnostic_report:
-			frappe.delete_doc("Diagnostic Report", exist_diagnostic_report)
+		for diagnostic_report in existing_diagnostic_reports:
+			frappe.delete_doc("Diagnostic Report", diagnostic_report)
 
 
 @frappe.whitelist()

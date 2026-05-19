@@ -18,6 +18,10 @@ from healthcare.healthcare.doctype.fee_validity.fee_validity import (
 	get_fee_validity,
 	manage_fee_validity,
 )
+from healthcare.healthcare.doctype.diagnostic_report.diagnostic_report import (
+	get_diagnostic_report_name,
+	get_diagnostic_report_title,
+)
 from healthcare.healthcare.doctype.healthcare_settings.healthcare_settings import (
 	get_income_account,
 )
@@ -1572,8 +1576,10 @@ def create_sample_collection_and_observation(doc):
 		if grouped:
 			out_data = grouped
 
+	report_categories = set()
 	for grp in out_data:
 		patient = doc.patient
+		report_categories = set()
 		if meta.has_field("patient") and grp:
 			patient = grp
 		if meta.has_field("patient"):
@@ -1581,17 +1587,18 @@ def create_sample_collection_and_observation(doc):
 			for obs in out_data[grp]:
 				(
 					sample_collection,
-					diag_report_required,
+					group_report_categories,
 				) = insert_observation_and_sample_collection(
 					doc, patient, obs, sample_collection, obs.get("child")
 				)
+				report_categories.update(group_report_categories)
 			if sample_collection and len(sample_collection.get("observation_sample_collection")) > 0:
 				sample_collection.save(ignore_permissions=True)
 
-			if diag_report_required:
-				insert_diagnostic_report(doc, patient, sample_collection.name)
+			for observation_category in report_categories:
+				insert_diagnostic_report(doc, patient, sample_collection.name, observation_category)
 		else:
-			sample_collection, diag_report_required = insert_observation_and_sample_collection(
+			sample_collection, report_categories = insert_observation_and_sample_collection(
 				doc, patient, grp, sample_collection
 			)
 
@@ -1599,8 +1606,8 @@ def create_sample_collection_and_observation(doc):
 		if sample_collection and len(sample_collection.get("observation_sample_collection")) > 0:
 			sample_collection.save(ignore_permissions=True)
 
-		if diag_report_required:
-			insert_diagnostic_report(doc, patient, sample_collection.name)
+		for observation_category in report_categories:
+			insert_diagnostic_report(doc, patient, sample_collection.name, observation_category)
 
 
 def create_sample_collection(doc, patient):
@@ -1616,8 +1623,12 @@ def create_sample_collection(doc, patient):
 	return sample_collection
 
 
-def insert_diagnostic_report(doc, patient, sample_collection=None):
-	if not frappe.db.exists("Diagnostic Report", {"docname": doc.name}):
+def get_observation_template_category(template_name):
+	return frappe.db.get_value("Observation Template", template_name, "observation_category")
+
+
+def insert_diagnostic_report(doc, patient, sample_collection=None, observation_category=None):
+	if not get_diagnostic_report_name(doc.doctype, doc.name, observation_category):
 		diagnostic_report = frappe.new_doc("Diagnostic Report")
 		diagnostic_report.company = doc.company
 		diagnostic_report.patient = patient
@@ -1625,15 +1636,21 @@ def insert_diagnostic_report(doc, patient, sample_collection=None):
 		diagnostic_report.docname = doc.name
 		diagnostic_report.practitioner = doc.ref_practitioner
 		diagnostic_report.sample_collection = sample_collection
+		patient_doc = frappe.get_doc("Patient", patient)
+		age = patient_doc.calculate_age(doc.posting_date).get("age_in_string") if patient_doc.dob else ""
+		diagnostic_report.title = get_diagnostic_report_title(
+			patient_doc.patient_name, age, patient_doc.sex, observation_category
+		)
 		diagnostic_report.save(ignore_permissions=True)
 
 
 def insert_observation_and_sample_collection(
 	doc, patient, grp, sample_collection, child=None, parent_observation=None
 ):
-	diag_report_required = False
+	report_categories = set()
+	observation_category = get_observation_template_category(grp.get("name"))
 	if grp.get("has_component"):
-		diag_report_required = True
+		report_categories.add(observation_category)
 
 		# parent observation
 		current_parent_observation = add_observation(
@@ -1691,7 +1708,7 @@ def insert_observation_and_sample_collection(
 						parent_observation=current_parent_observation,
 					)
 					sample_collection = sub_sc
-					diag_report_required = diag_report_required or sub_drc
+					report_categories.update(sub_drc)
 				else:
 					add_observation(
 						patient=patient,
@@ -1729,10 +1746,10 @@ def insert_observation_and_sample_collection(
 						parent_observation=current_parent_observation,
 					)
 					sample_collection = sub_sc
-					diag_report_required = diag_report_required or sub_drc
+					report_categories.update(sub_drc)
 
 	else:
-		diag_report_required = True
+		report_categories.add(observation_category)
 		# create observation for non sample_collection_reqd individual templates
 		if not grp.get("sample_collection_required"):
 			add_observation(
@@ -1755,7 +1772,7 @@ def insert_observation_and_sample_collection(
 					"reference_child": child if child else "",
 				},
 			)
-	return sample_collection, diag_report_required
+	return sample_collection, report_categories
 
 
 def has_direct_leaf_component(template_name):

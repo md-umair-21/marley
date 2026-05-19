@@ -9,6 +9,11 @@ from healthcare.healthcare.doctype.healthcare_settings.healthcare_settings impor
 	get_income_account,
 	get_receivable_account,
 )
+from healthcare.healthcare.doctype.diagnostic_report.diagnostic_report import (
+	get_diagnostic_report_name,
+	get_diagnostic_report_title,
+)
+from healthcare.healthcare.doctype.observation.observation import get_observation_details
 from healthcare.tests.utils import HealthcareTestSuite
 
 
@@ -180,6 +185,94 @@ class TestObservation(HealthcareTestSuite):
 				},
 			)
 		)
+
+	def test_category_specific_reports_filter_observations(self):
+		self.enable_observation_on_invoice_submit()
+
+		patient = self.get_test_patient()
+		sales_invoice = create_sales_invoice(patient, "_Test Observation without Sample")
+		lab_report = get_diagnostic_report_name("Sales Invoice", sales_invoice.name, "Laboratory")
+		self.assertTrue(lab_report)
+
+		imaging_template = ensure_imaging_observation_template()
+		imaging_observation = frappe.new_doc("Observation")
+		imaging_observation.posting_datetime = getdate()
+		imaging_observation.patient = patient
+		imaging_observation.observation_template = imaging_template.name
+		imaging_observation.sales_invoice = sales_invoice.name
+		imaging_observation.company = sales_invoice.company
+		imaging_observation.result_text = "Clear"
+		imaging_observation.insert(ignore_permissions=True)
+
+		patient_doc = frappe.get_doc("Patient", patient)
+		imaging_report = frappe.new_doc("Diagnostic Report")
+		imaging_report.company = sales_invoice.company
+		imaging_report.patient = patient
+		imaging_report.ref_doctype = "Sales Invoice"
+		imaging_report.docname = sales_invoice.name
+		imaging_report.title = get_diagnostic_report_title(
+			patient_doc.patient_name,
+			patient_doc.calculate_age(sales_invoice.posting_date).get("age_in_string"),
+			patient_doc.sex,
+			"Imaging",
+		)
+		imaging_report.save(ignore_permissions=True)
+
+		lab_data, _ = get_observation_details(lab_report)
+		imaging_data, _ = get_observation_details(imaging_report.name)
+
+		self.assertEqual(["Laboratory"], [row["observation"]["observation_category"] for row in lab_data])
+		self.assertEqual(["Imaging"], [row["observation"]["observation_category"] for row in imaging_data])
+
+	def test_category_specific_status_updates_only_matching_report(self):
+		self.enable_observation_on_invoice_submit()
+
+		patient = self.get_test_patient()
+		sales_invoice = create_sales_invoice(patient, "_Test Observation without Sample")
+		lab_report = get_diagnostic_report_name("Sales Invoice", sales_invoice.name, "Laboratory")
+		self.assertTrue(lab_report)
+
+		imaging_template = ensure_imaging_observation_template()
+		imaging_observation = frappe.new_doc("Observation")
+		imaging_observation.posting_datetime = getdate()
+		imaging_observation.patient = patient
+		imaging_observation.observation_template = imaging_template.name
+		imaging_observation.sales_invoice = sales_invoice.name
+		imaging_observation.company = sales_invoice.company
+		imaging_observation.result_text = "Clear"
+		imaging_observation.insert(ignore_permissions=True)
+
+		patient_doc = frappe.get_doc("Patient", patient)
+		imaging_report = frappe.new_doc("Diagnostic Report")
+		imaging_report.company = sales_invoice.company
+		imaging_report.patient = patient
+		imaging_report.ref_doctype = "Sales Invoice"
+		imaging_report.docname = sales_invoice.name
+		imaging_report.title = get_diagnostic_report_title(
+			patient_doc.patient_name,
+			patient_doc.calculate_age(sales_invoice.posting_date).get("age_in_string"),
+			patient_doc.sex,
+			"Imaging",
+		)
+		imaging_report.save(ignore_permissions=True)
+
+		lab_observation = frappe.get_all(
+			"Observation",
+			filters={
+				"sales_invoice": sales_invoice.name,
+				"observation_category": "Laboratory",
+			},
+			fields=["name"],
+			limit=1,
+		)[0]
+		lab_observation_doc = frappe.get_doc("Observation", lab_observation.name)
+		lab_observation_doc.result_data = "5"
+		lab_observation_doc.status = "Approved"
+		lab_observation_doc.save()
+		lab_observation_doc.submit()
+
+		self.assertEqual("Approved", frappe.db.get_value("Diagnostic Report", lab_report, "status"))
+		self.assertEqual("Open", frappe.db.get_value("Diagnostic Report", imaging_report.name, "status"))
 
 	def test_formula_computes_result(self):
 		self.enable_observation_on_invoice_submit()
@@ -408,3 +501,19 @@ def create_patient_encounter(patient, observation_template):
 
 	patient_encounter.submit()
 	return patient_encounter
+
+
+def ensure_imaging_observation_template():
+	template_name = "_Test Imaging Observation"
+	if frappe.db.exists("Observation Template", template_name):
+		return frappe.get_doc("Observation Template", template_name)
+
+	template = frappe.new_doc("Observation Template")
+	template.observation = template_name
+	template.abbr = "TIO"
+	template.observation_category = "Imaging"
+	template.permitted_data_type = "Text"
+	template.sample_collection_required = 0
+	template.item_group = "Services"
+	template.insert(ignore_permissions=True)
+	return template

@@ -13,6 +13,10 @@ from frappe.utils import flt, get_link_to_form, getdate, now_datetime, nowdate
 from erpnext.setup.doctype.terms_and_conditions.terms_and_conditions import (
 	get_terms_and_conditions,
 )
+from healthcare.healthcare.doctype.diagnostic_report.diagnostic_report import (
+	get_diagnostic_report_name,
+	get_observation_category_from_title,
+)
 
 
 class Observation(Document):
@@ -136,19 +140,26 @@ class Observation(Document):
 
 @frappe.whitelist()
 def get_observation_details(docname):
-	reference = frappe.get_value("Diagnostic Report", docname, ["docname", "ref_doctype"], as_dict=True)
+	reference = frappe.get_value(
+		"Diagnostic Report", docname, ["docname", "ref_doctype", "title"], as_dict=True
+	)
+	observation_category = get_observation_category_from_title(reference.get("title"))
 	observation = []
 
 	if reference.get("ref_doctype") == "Sales Invoice":
+		filters = {
+			"sales_invoice": reference.get("docname"),
+			"parent_observation": "",
+			"status": ["!=", "Cancelled"],
+			"docstatus": ["!=", 2],
+		}
+		if observation_category:
+			filters["observation_category"] = observation_category
+
 		observation = frappe.get_list(
 			"Observation",
 			fields=["*"],
-			filters={
-				"sales_invoice": reference.get("docname"),
-				"parent_observation": "",
-				"status": ["!=", "Cancelled"],
-				"docstatus": ["!=", 2],
-			},
+			filters=filters,
 			order_by="creation",
 		)
 	elif reference.get("ref_doctype") == "Patient Encounter":
@@ -163,15 +174,19 @@ def get_observation_details(docname):
 			order_by="creation",
 			pluck="name",
 		)
+		filters = {
+			"service_request": ["in", service_requests],
+			"parent_observation": "",
+			"status": ["!=", "Cancelled"],
+			"docstatus": ["!=", 2],
+		}
+		if observation_category:
+			filters["observation_category"] = observation_category
+
 		observation = frappe.get_list(
 			"Observation",
 			fields=["*"],
-			filters={
-				"service_request": ["in", service_requests],
-				"parent_observation": "",
-				"status": ["!=", "Cancelled"],
-				"docstatus": ["!=", 2],
-			},
+			filters=filters,
 			order_by="creation",
 		)
 
@@ -529,9 +544,13 @@ def set_diagnostic_report_status(doc):
 				"Sample Collection", doc.reference_docname, ["reference_doc", "reference_name"]
 			)
 
-		diagnostic_report = frappe.db.get_value(
-			"Diagnostic Report", {"ref_doctype": ref_doctype, "docname": ref_docname}, "name"
+		diagnostic_report = get_diagnostic_report_name(
+			ref_doctype, ref_docname, doc.observation_category
 		)
+		if not diagnostic_report:
+			diagnostic_report = frappe.db.get_value(
+				"Diagnostic Report", {"ref_doctype": ref_doctype, "docname": ref_docname}, "name"
+			)
 
 		if diagnostic_report:
 			out_data, obs_length = get_observation_details(diagnostic_report)

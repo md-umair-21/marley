@@ -15,7 +15,7 @@
 				<div class="flex items-center justify-between whitespace-nowrap">
 					<h3 class="text-xs font-medium text-gray-500 truncate"># {{ item.order_name }}</h3>
 					<Badge v-if="item.diagnostic_report_status" :variant="'outline'"
-						:theme="item.diagnostic_report_status == 'Approved' ? 'green' : 'orange'">
+						:theme="getStatusColor(item.diagnostic_report_status)">
 						{{ item.diagnostic_report_status }}
 					</Badge>
 				</div>
@@ -27,8 +27,8 @@
 				<p v-if="item.ref_practitioner" class="mt-1 text-xs text-gray-600 whitespace-nowrap truncate">
 					Practitioner: {{ item.ref_practitioner }}
 				</p>
-				<p v-if="item.diagnostic_report" class="mt-1 text-xs text-gray-600 whitespace-nowrap truncate">
-					# {{ item.diagnostic_report }}
+				<p v-if="item.diagnostic_reports?.length" class="mt-1 text-xs text-gray-600 whitespace-nowrap truncate">
+					Reports: {{ item.diagnostic_reports.length }}
 				</p>
 
 				<p class="mt-1 text-xs text-gray-600 whitespace-nowrap">
@@ -72,7 +72,7 @@
 			<div class="py-2 flex items-center justify-between gap-2">
 				<p class="text-sm text-gray-500"># {{ selectedOrder.order_name }}</p>
 				<Badge v-if="selectedOrder.diagnostic_report_status" :variant="'outline'"
-					:theme="selectedOrder.diagnostic_report_status == 'Approved' ? 'green' : 'orange'">
+					:theme="getStatusColor(selectedOrder.diagnostic_report_status)">
 					{{ selectedOrder.diagnostic_report_status }}
 				</Badge>
 			</div>
@@ -96,7 +96,7 @@
 					</div>
 
 					<!-- Order Status -->
-					<Button v-if="selectedOrder.invoice" :ref_for="true" theme="gray" size="sm"
+					<Button v-if="selectedOrder.invoice?.length" :ref_for="true" theme="gray" size="sm"
 						@click="print('Sales Invoice', selectedOrder.invoice)">
 						<Tooltip :text="'Print Invoice'" placement="top">
 							<slot name="icon">
@@ -124,14 +124,51 @@
 			<div class="mt-6">
 				<div class="flex items-center justify-between gap-2 py-2">
 					<h3 class="text-lg font-semibold text-gray-900">Test Report Details</h3>
-					<Button v-if="selectedOrder.diagnostic_report_status && selectedOrder.diagnostic_report_status != 'Open'" :ref_for="true" theme="gray" size="sm"
-						@click="print('Diagnostic Report', selectedOrder.diagnostic_report)">
+					<Button
+						v-if="printableDiagnosticReports.length"
+						:ref_for="true"
+						theme="gray"
+						size="sm"
+						@click="print('Diagnostic Report', printableDiagnosticReports.map((report) => report.name))">
 						<Tooltip :text="'Print Report'" placement="top">
 							<slot name="icon">
 								<FeatherIcon :name="'printer'" class="size-3 text-ink-white-7" />
 							</slot>
 						</Tooltip>
 					</Button>
+				</div>
+				<div v-if="selectedOrder.diagnostic_reports?.length" class="mb-4 flex flex-wrap gap-2">
+					<div
+						v-for="report in selectedOrder.diagnostic_reports"
+						:key="report.name"
+						class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2"
+					>
+						<div>
+							<p class="text-sm font-medium text-gray-800">{{ report.observation_category }}</p>
+							<p class="text-xs text-gray-500">{{ report.name }}</p>
+						</div>
+						<Badge
+							v-if="report.status"
+							:variant="'outline'"
+							size="sm"
+							:theme="getStatusColor(report.status)"
+						>
+							{{ report.status }}
+						</Badge>
+						<Button
+							v-if="report.status && report.status != 'Open'"
+							:ref_for="true"
+							theme="gray"
+							size="sm"
+							@click="print('Diagnostic Report', report.name)"
+						>
+							<Tooltip :text="'Print Report'" placement="top">
+								<slot name="icon">
+									<FeatherIcon :name="'printer'" class="size-3 text-ink-white-7" />
+								</slot>
+							</Tooltip>
+						</Button>
+					</div>
 				</div>
 				<div class="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
 					<div v-for="(order, index) in selectedOrder.tests" :key="index"
@@ -279,6 +316,12 @@ const paginatedOrders = computed(() => {
 	const start = (currentPage.value - 1) * pageSize;
 	return orders.value.slice(start, start + pageSize);
 });
+
+const printableDiagnosticReports = computed(() =>
+	(selectedOrder.value?.diagnostic_reports || []).filter(
+		(report) => report.status && report.status !== "Open"
+	)
+);
 
 function print(doctype, docname) {
 	let get_print_format = createResource({
