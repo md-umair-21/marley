@@ -312,7 +312,8 @@ def build_order_map(orders, report_lookup, from_invoice=False):
 
 		add_diagnostic_report_to_order(
 			orders_map[key],
-			report_lookup.get((row.order_name, row.observation_category)),
+			report_lookup.get((row.order_name, row.observation_category))
+			or report_lookup.get((row.order_name, None)),
 		)
 
 		invoice = None
@@ -352,12 +353,10 @@ def get_diagnostic_report_lookup(ref_doctype, docnames):
 	report_lookup = {}
 	for row in report_rows:
 		observation_category = get_observation_category_from_title(row.get("title"))
-		if not observation_category:
-			continue
 		report_lookup[(row.get("docname"), observation_category)] = {
 			"name": row.get("name"),
 			"status": row.get("status"),
-			"observation_category": observation_category,
+			"observation_category": observation_category or "Unspecified",
 		}
 
 	return report_lookup

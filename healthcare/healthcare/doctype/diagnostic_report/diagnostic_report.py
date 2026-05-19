@@ -23,7 +23,7 @@ def get_observation_category_from_title(title):
 	if not title or "[Observation Category:" not in title:
 		return None
 
-	prefix, _, suffix = title.rpartition("[Observation Category:")
+	_, _, suffix = title.rpartition("[Observation Category:")
 	if not suffix:
 		return None
 

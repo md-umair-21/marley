@@ -156,7 +156,7 @@
 							{{ report.status }}
 						</Badge>
 						<Button
-							v-if="report.status && report.status != 'Open'"
+							v-if="report.status && report.status !== 'Open'"
 							:ref_for="true"
 							theme="gray"
 							size="sm"

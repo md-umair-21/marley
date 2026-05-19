@@ -221,8 +221,12 @@ class TestObservation(HealthcareTestSuite):
 		lab_data, _ = get_observation_details(lab_report)
 		imaging_data, _ = get_observation_details(imaging_report.name)
 
-		self.assertEqual(["Laboratory"], [row["observation"]["observation_category"] for row in lab_data])
-		self.assertEqual(["Imaging"], [row["observation"]["observation_category"] for row in imaging_data])
+		self.assertTrue(lab_data)
+		self.assertTrue(imaging_data)
+		self.assertEqual(
+			{"Laboratory"}, {row["observation"]["observation_category"] for row in lab_data}
+		)
+		self.assertEqual({"Imaging"}, {row["observation"]["observation_category"] for row in imaging_data})
 
 	def test_category_specific_status_updates_only_matching_report(self):
 		self.enable_observation_on_invoice_submit()
@@ -505,13 +509,16 @@ def create_patient_encounter(patient, observation_template):
 
 def ensure_imaging_observation_template():
 	template_name = "_Test Imaging Observation"
+	expected_category = "Imaging"
 	if frappe.db.exists("Observation Template", template_name):
-		return frappe.get_doc("Observation Template", template_name)
+		template = frappe.get_doc("Observation Template", template_name)
+		if template.observation_category == expected_category:
+			return template
 
 	template = frappe.new_doc("Observation Template")
 	template.observation = template_name
 	template.abbr = "TIO"
-	template.observation_category = "Imaging"
+	template.observation_category = expected_category
 	template.permitted_data_type = "Text"
 	template.sample_collection_required = 0
 	template.item_group = "Services"

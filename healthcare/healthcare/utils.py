@@ -1519,7 +1519,6 @@ def company_on_trash(doc, method):
 
 def create_sample_collection_and_observation(doc):
 	meta = frappe.get_meta("Sales Invoice Item", cached=True)
-	diag_report_required = False
 	data = []
 	for item in doc.items:
 		# to set patient in item table if not set
