@@ -1594,9 +1594,7 @@ def create_sample_collection_and_observation(doc):
 
 			if diag_report_required:
 				for observation_category in observation_categories:
-					insert_diagnostic_report(
-						doc, patient, sample_collection.name, observation_category
-					)
+					insert_diagnostic_report(doc, patient, sample_collection.name, observation_category)
 		else:
 			sample_collection, diag_report_required = insert_observation_and_sample_collection(
 				doc, patient, grp, sample_collection
@@ -1607,9 +1605,7 @@ def create_sample_collection_and_observation(doc):
 			sample_collection.save(ignore_permissions=True)
 
 		if diag_report_required:
-			insert_diagnostic_report(
-				doc, patient, sample_collection.name, grp.get("observation_category")
-			)
+			insert_diagnostic_report(doc, patient, sample_collection.name, grp.get("observation_category"))
 
 
 def create_sample_collection(doc, patient):
