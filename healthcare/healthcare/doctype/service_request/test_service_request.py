@@ -11,10 +11,10 @@ from healthcare.healthcare.doctype.healthcare_settings.healthcare_settings impor
 	get_receivable_account,
 )
 from healthcare.healthcare.doctype.lab_test.test_lab_test import create_lab_test
+from healthcare.healthcare.doctype.observation.observation import get_observation_details
 from healthcare.healthcare.doctype.patient_encounter.patient_encounter import (
 	create_patient_referral,
 )
-from healthcare.healthcare.doctype.observation.observation import get_observation_details
 from healthcare.healthcare.doctype.service_request.service_request import (
 	make_clinical_procedure,
 	make_observation,

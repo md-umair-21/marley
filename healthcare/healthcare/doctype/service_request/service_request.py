@@ -396,6 +396,7 @@ def create_observation(service_request, appointment=None):
 	ref_doctype, ref_docname = get_service_request_reference(service_request)
 	doc = frappe.new_doc("Observation")
 	doc.posting_datetime = now_datetime()
+	doc.company = service_request.company
 	doc.patient = service_request.patient
 	doc.appointment = appointment
 	doc.observation_template = service_request.template_dn
