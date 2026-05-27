@@ -183,6 +183,18 @@ def get_observation_details(docname):
 			},
 			order_by="creation",
 		)
+	elif reference.get("ref_doctype") == "Service Request":
+		observation = frappe.get_list(
+			"Observation",
+			fields=["*"],
+			filters={
+				"service_request": reference.get("docname"),
+				"parent_observation": "",
+				"status": ["!=", "Cancelled"],
+				"docstatus": ["!=", 2],
+			},
+			order_by="creation",
+		)
 
 	out_data, obs_length = aggregate_and_return_observation_data(observation)
 

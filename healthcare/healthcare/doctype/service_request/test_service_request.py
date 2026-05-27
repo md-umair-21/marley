@@ -14,7 +14,11 @@ from healthcare.healthcare.doctype.lab_test.test_lab_test import create_lab_test
 from healthcare.healthcare.doctype.patient_encounter.patient_encounter import (
 	create_patient_referral,
 )
-from healthcare.healthcare.doctype.service_request.service_request import make_clinical_procedure
+from healthcare.healthcare.doctype.observation.observation import get_observation_details
+from healthcare.healthcare.doctype.service_request.service_request import (
+	make_clinical_procedure,
+	make_observation,
+)
 from healthcare.healthcare.doctype.therapy_plan.test_therapy_plan import create_therapy_plan
 from healthcare.tests.utils import HealthcareTestSuite
 
@@ -147,6 +151,50 @@ class TestServiceRequest(HealthcareTestSuite):
 			),
 			practitioner_2,
 		)
+
+	def test_manual_observation_service_request_creates_diagnostic_report(self):
+		patient = frappe.get_list("Patient", pluck="name")[0]
+		practitioner = frappe.get_list("Healthcare Practitioner", pluck="name")[0]
+		obs_template = frappe.get_doc("Observation Template", "_Test Observation without Sample")
+
+		service_request = frappe.get_doc(
+			{
+				"doctype": "Service Request",
+				"order_date": getdate(),
+				"order_time": nowtime(),
+				"company": "_Test Company",
+				"patient": patient,
+				"practitioner": practitioner,
+				"template_dt": "Observation Template",
+				"template_dn": obs_template.name,
+				"quantity": 1,
+			}
+		)
+		service_request.insert()
+		service_request.submit()
+
+		create_sales_invoice(patient, service_request, obs_template, "observation")
+		observation_name, doctype = make_observation(service_request.name)
+
+		self.assertEqual(doctype, "Observation")
+		self.assertTrue(
+			frappe.db.exists(
+				"Diagnostic Report",
+				{"ref_doctype": "Service Request", "docname": service_request.name},
+			)
+		)
+
+		observation = frappe.get_doc("Observation", observation_name)
+		self.assertEqual(observation.reference_doctype, "Service Request")
+		self.assertEqual(observation.reference_docname, service_request.name)
+
+		report_name = frappe.db.get_value(
+			"Diagnostic Report",
+			{"ref_doctype": "Service Request", "docname": service_request.name},
+			"name",
+		)
+		_, obs_length = get_observation_details(report_name)
+		self.assertEqual(obs_length, 1)
 
 
 def create_encounter(

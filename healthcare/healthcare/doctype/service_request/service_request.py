@@ -236,6 +236,7 @@ def make_observation(service_request, appointment=None):
 		return
 
 	service_request = frappe.get_cached_doc("Service Request", service_request)
+	ref_doctype, ref_docname = get_service_request_reference(service_request)
 
 	if (
 		frappe.db.get_single_value("Healthcare Settings", "process_service_request_only_if_paid")
@@ -344,7 +345,9 @@ def make_observation(service_request, appointment=None):
 		else:
 			observation = create_observation(service_request, appointment)
 
-	diagnostic_report = frappe.db.exists("Diagnostic Report", {"docname": service_request.order_group})
+	diagnostic_report = frappe.db.exists(
+		"Diagnostic Report", {"ref_doctype": ref_doctype, "docname": ref_docname}
+	)
 	if not diagnostic_report:
 		insert_diagnostic_report(service_request, sample_collection.name if sample_collection else None)
 
@@ -361,14 +364,15 @@ def make_observation(service_request, appointment=None):
 
 
 def create_sample_collection(patient, service_request, appointment=None, template=None):
+	ref_doctype, ref_docname = get_service_request_reference(service_request)
 	sample_collection = frappe.new_doc("Sample Collection")
 	sample_collection.patient = patient.name
 	sample_collection.patient_age = patient.get_age()
 	sample_collection.patient_sex = patient.sex
 	sample_collection.appointment = appointment
 	sample_collection.company = service_request.company
-	sample_collection.reference_doc = service_request.source_doc
-	sample_collection.reference_name = service_request.order_group
+	sample_collection.reference_doc = ref_doctype
+	sample_collection.reference_name = ref_docname
 	if template:
 		sample_collection.append(
 			"observation_sample_collection",
@@ -389,27 +393,36 @@ def create_sample_collection(patient, service_request, appointment=None, templat
 
 
 def create_observation(service_request, appointment=None):
+	ref_doctype, ref_docname = get_service_request_reference(service_request)
 	doc = frappe.new_doc("Observation")
 	doc.posting_datetime = now_datetime()
 	doc.patient = service_request.patient
 	doc.appointment = appointment
 	doc.observation_template = service_request.template_dn
-	doc.reference_doctype = "Patient Encounter"
-	doc.reference_docname = service_request.order_group
+	doc.reference_doctype = ref_doctype
+	doc.reference_docname = ref_docname
 	doc.service_request = service_request.name
 	doc.insert()
 	return doc
 
 
 def insert_diagnostic_report(doc, sample_collection=None):
+	ref_doctype, ref_docname = get_service_request_reference(doc)
 	diagnostic_report = frappe.new_doc("Diagnostic Report")
 	diagnostic_report.company = doc.company
 	diagnostic_report.patient = doc.patient
-	diagnostic_report.ref_doctype = doc.source_doc
-	diagnostic_report.docname = doc.order_group
+	diagnostic_report.ref_doctype = ref_doctype
+	diagnostic_report.docname = ref_docname
 	diagnostic_report.practitioner = doc.practitioner
 	diagnostic_report.sample_collection = sample_collection
 	diagnostic_report.save(ignore_permissions=True)
+
+
+def get_service_request_reference(service_request):
+	if service_request.source_doc and service_request.order_group:
+		return service_request.source_doc, service_request.order_group
+
+	return "Service Request", service_request.name
 
 
 def check_observation_sample_exist(service_request):
