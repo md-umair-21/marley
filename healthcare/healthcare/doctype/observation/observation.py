@@ -144,7 +144,7 @@ class Observation(Document):
 
 
 @frappe.whitelist()
-def get_observation_details(docname):
+def get_observation_details(docname: str):
 	reference = frappe.get_value("Diagnostic Report", docname, ["docname", "ref_doctype"], as_dict=True)
 	observation = []
 
