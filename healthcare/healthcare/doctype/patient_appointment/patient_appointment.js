@@ -991,7 +991,8 @@ let check_and_set_availability = function (frm) {
 			count,
 			count_class,
 			tool_tip,
-			available_slots;
+			available_slots,
+			past_slot_window;
 
 		slot_details.forEach(slot_info => {
 			slot_html += `<div class="slot-info">`;
@@ -1051,6 +1052,7 @@ let check_and_set_availability = function (frm) {
 					slot_start_time = moment(slot.from_time, "HH:mm:ss");
 					slot_end_time = moment(slot.to_time, "HH:mm:ss");
 					interval = ((slot_end_time - slot_start_time) / 60000) | 0;
+					past_slot_window = false;
 
 					// restrict past slots based on the current time.
 					let now = moment();
@@ -1060,6 +1062,13 @@ let check_and_set_availability = function (frm) {
 						slot_start_time.isBefore(now) &&
 						!slot.maximum_appointments
 					) {
+						disabled = true;
+					} else if (
+						now.format("YYYY-MM-DD") == appointment_date &&
+						slot.maximum_appointments &&
+						slot_end_time.isSameOrBefore(now)
+					) {
+						past_slot_window = true;
 						disabled = true;
 					} else {
 						// iterate in all booked appointments, update the start time and duration
@@ -1144,7 +1153,12 @@ let check_and_set_availability = function (frm) {
 					}
 
 					if (slot.maximum_appointments) {
-						if (
+						if (past_slot_window) {
+							disabled = true;
+							count = __("Closed");
+							count_class = "badge-danger";
+							tool_tip = __("This schedule is closed for today");
+						} else if (
 							appointment_count >= slot.maximum_appointments ||
 							unavailable
 						) {
@@ -1152,15 +1166,18 @@ let check_and_set_availability = function (frm) {
 						} else {
 							disabled = false;
 						}
-						available_slots = slot.maximum_appointments - appointment_count;
-						count = `${available_slots > 0 ? available_slots : __("Full")}`;
-						count_class = `${
-							available_slots > 0 ? "badge-success" : "badge-danger"
-						}`;
+						if (!past_slot_window) {
+							available_slots = slot.maximum_appointments - appointment_count;
+							count = `${available_slots > 0 ? available_slots : __("Full")}`;
+							count_class = `${
+								available_slots > 0 ? "badge-success" : "badge-danger"
+							}`;
+						}
 						return `<button class="btn btn-secondary" data-name=${start_str}
 						data-service-unit="${slot_info.service_unit || ""}"
 						data-day-appointment=${1}
 						data-duration=${slot.duration}
+						data-toggle="tooltip" title="${tool_tip || ""}"
 						${disabled ? `disabled="disabled"` : ""}>${slot.from_time} -
 						${slot.to_time} ${
 							slot.maximum_appointments
