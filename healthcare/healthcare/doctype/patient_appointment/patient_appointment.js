@@ -1167,8 +1167,11 @@ let check_and_set_availability = function (frm) {
 							disabled = false;
 						}
 						if (!past_slot_window) {
-							available_slots = slot.maximum_appointments - appointment_count;
-							count = `${available_slots > 0 ? available_slots : __("Full")}`;
+							available_slots =
+								slot.maximum_appointments - appointment_count;
+							count = `${
+								available_slots > 0 ? available_slots : __("Full")
+							}`;
 							count_class = `${
 								available_slots > 0 ? "badge-success" : "badge-danger"
 							}`;
