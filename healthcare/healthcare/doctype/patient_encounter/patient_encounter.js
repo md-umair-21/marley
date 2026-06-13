@@ -205,13 +205,7 @@ frappe.ui.form.on("Patient Encounter", {
 			};
 		});
 
-		frm.set_query("lab_test_code", "lab_test_prescription", function () {
-			return {
-				filters: {
-					is_billable: 1,
-				},
-			};
-		});
+		set_lab_test_prescription_queries(frm);
 
 		frm.set_query("appointment", function () {
 			return {
@@ -704,13 +698,7 @@ let create_nursing_tasks = function (frm) {
 			});
 
 			d.hide();
-			frm.set_query("lab_test_code", "lab_test_prescription", function () {
-				return {
-					filters: {
-						is_billable: 1,
-					},
-				};
-			});
+			set_lab_test_prescription_queries(frm);
 		},
 	});
 
@@ -857,6 +845,24 @@ var apply_code_sm_filter_to_child = function (frm, field, table_list, code_syste
 				},
 			};
 		});
+	});
+};
+
+var set_lab_test_prescription_queries = function (frm) {
+	frm.set_query("lab_test_code", "lab_test_prescription", function () {
+		return {
+			filters: {
+				is_billable: 1,
+			},
+		};
+	});
+
+	frm.set_query("observation_template", "lab_test_prescription", function () {
+		return {
+			filters: {
+				is_billable: 1,
+			},
+		};
 	});
 };
 
