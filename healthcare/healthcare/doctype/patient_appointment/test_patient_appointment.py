@@ -847,7 +847,13 @@ def create_practitioner_availability(
 	service_unit=None,
 	create_slots=1,
 	maximum_appointments=None,
+	**kwargs,
 ):
+	if "type" in kwargs:
+		availability_type = kwargs.pop("type")
+	if kwargs:
+		raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs)}")
+
 	return frappe.get_doc(
 		{
 			"doctype": "Practitioner Availability",
