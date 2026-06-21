@@ -969,6 +969,16 @@ def build_availability_data(availability, appointment_type, date, practitioner_d
 	)
 	appointments.extend(practitioner_availability)
 
+	if not availability_doc.create_slots:
+		window_start = get_time(start_time)
+		window_end = get_time(end_time)
+		appointments = [
+			appointment
+			for appointment in appointments
+			if appointment.get("appointment_time")
+			and window_start <= get_time(appointment.get("appointment_time")) < window_end
+		]
+
 	return (
 		{
 			"slot_name": "Practitioner Availability",

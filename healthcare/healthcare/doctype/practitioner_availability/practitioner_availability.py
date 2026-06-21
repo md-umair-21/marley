@@ -9,6 +9,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.query_builder import DocType
 from frappe.utils import (
+	cint,
 	add_to_date,
 	date_diff,
 	get_datetime,
@@ -48,6 +49,7 @@ class PractitionerAvailability(Document):
 			return
 
 		self.create_slots = 1 if self.create_slots is None else self.create_slots
+		self.create_slots = cint(self.create_slots)
 
 		if not self.create_slots:
 			if not self.maximum_appointments or self.maximum_appointments <= 0:
