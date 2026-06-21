@@ -936,8 +936,8 @@ def build_availability_data(availability, appointment_type, date, practitioner_d
 
 		while current + datetime.timedelta(minutes=appointment_duration) <= end:
 			slot_start = current.time().strftime("%H:%M:%S")
-			slot_end = (current + datetime.timedelta(minutes=appointment_duration)).time().strftime(
-				"%H:%M:%S"
+			slot_end = (
+				(current + datetime.timedelta(minutes=appointment_duration)).time().strftime("%H:%M:%S")
 			)
 			available_slots.append({"from_time": slot_start, "to_time": slot_end})
 			current += datetime.timedelta(minutes=appointment_duration)

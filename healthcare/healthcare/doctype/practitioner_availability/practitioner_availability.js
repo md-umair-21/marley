@@ -49,11 +49,7 @@ frappe.ui.form.on("Practitioner Availability", {
 		const show_capacity =
 			frm.doc.type == "Available" && !cint(frm.doc.create_slots);
 		frm.toggle_reqd("maximum_appointments", show_capacity);
-		if (
-			clear_value &&
-			!show_capacity &&
-			frm.doc.maximum_appointments != null
-		) {
+		if (clear_value && !show_capacity && frm.doc.maximum_appointments != null) {
 			frm.set_value("maximum_appointments", null);
 		}
 	},
