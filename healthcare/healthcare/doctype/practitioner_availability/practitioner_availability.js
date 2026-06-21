@@ -32,7 +32,7 @@ frappe.ui.form.on("Practitioner Availability", {
 	},
 
 	type: function (frm) {
-		frm.events.toggle_capacity_fields(frm);
+		frm.events.toggle_capacity_fields(frm, true);
 		if (
 			frm.doc.type == "Available" &&
 			frm.doc.scope_type != "Healthcare Practitioner"
@@ -42,14 +42,18 @@ frappe.ui.form.on("Practitioner Availability", {
 	},
 
 	create_slots: function (frm) {
-		frm.events.toggle_capacity_fields(frm);
+		frm.events.toggle_capacity_fields(frm, true);
 	},
 
-	toggle_capacity_fields: function (frm) {
+	toggle_capacity_fields: function (frm, clear_value = false) {
 		const show_capacity =
 			frm.doc.type == "Available" && !cint(frm.doc.create_slots);
 		frm.toggle_reqd("maximum_appointments", show_capacity);
-		if (!show_capacity) {
+		if (
+			clear_value &&
+			!show_capacity &&
+			frm.doc.maximum_appointments != null
+		) {
 			frm.set_value("maximum_appointments", null);
 		}
 	},
