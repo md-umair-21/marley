@@ -930,14 +930,26 @@ def build_availability_data(availability, appointment_type, date, practitioner_d
 	start_time = (datetime.datetime.combine(date, datetime.time()) + availability_doc.start_time).time()
 	end_time = (datetime.datetime.combine(date, datetime.time()) + availability_doc.end_time).time()
 
-	current = datetime.datetime.combine(date, start_time)
-	end = datetime.datetime.combine(date, end_time)
+	if availability_doc.create_slots:
+		current = datetime.datetime.combine(date, start_time)
+		end = datetime.datetime.combine(date, end_time)
 
-	while current + datetime.timedelta(minutes=appointment_duration) <= end:
-		slot_start = current.time().strftime("%H:%M:%S")
-		slot_end = (current + datetime.timedelta(minutes=appointment_duration)).time().strftime("%H:%M:%S")
-		available_slots.append({"from_time": slot_start, "to_time": slot_end})
-		current += datetime.timedelta(minutes=appointment_duration)
+		while current + datetime.timedelta(minutes=appointment_duration) <= end:
+			slot_start = current.time().strftime("%H:%M:%S")
+			slot_end = (current + datetime.timedelta(minutes=appointment_duration)).time().strftime(
+				"%H:%M:%S"
+			)
+			available_slots.append({"from_time": slot_start, "to_time": slot_end})
+			current += datetime.timedelta(minutes=appointment_duration)
+	else:
+		available_slots.append(
+			{
+				"from_time": start_time.strftime("%H:%M:%S"),
+				"to_time": end_time.strftime("%H:%M:%S"),
+				"duration": appointment_duration,
+				"maximum_appointments": availability_doc.maximum_appointments,
+			}
+		)
 
 	filters = {
 		"practitioner": practitioner_doc.name,

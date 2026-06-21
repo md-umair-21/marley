@@ -22,6 +22,7 @@ from frappe.utils import (
 class PractitionerAvailability(Document):
 	def validate(self):
 		self.set_fallbacks()
+		self.validate_capacity_settings()
 		self.set_title()
 		self.validate_start_and_end()
 		self.validate_availability_overlaps()
@@ -39,6 +40,24 @@ class PractitionerAvailability(Document):
 			start = datetime.combine(getdate(self.start_date), get_time(self.start_time))
 			end = datetime.combine(getdate(self.end_date), get_time(self.end_time))
 			self.duration = int(time_diff_in_seconds(end, start) / 60)
+
+	def validate_capacity_settings(self):
+		if self.type != "Available":
+			self.create_slots = 1
+			self.maximum_appointments = None
+			return
+
+		self.create_slots = 1 if self.create_slots is None else self.create_slots
+
+		if not self.create_slots:
+			if not self.maximum_appointments or self.maximum_appointments <= 0:
+				frappe.throw(
+					_(
+						"Maximum Number of Appointments (Nos) is mandatory when Create Slots is unchecked."
+					)
+				)
+		else:
+			self.maximum_appointments = None
 
 	def validate_start_and_end(self):
 		if not self.start_time or not self.end_time:

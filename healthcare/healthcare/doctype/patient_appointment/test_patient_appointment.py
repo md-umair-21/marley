@@ -838,7 +838,15 @@ class TestPatientAppointment(HealthcareTestSuite):
 
 
 def create_practitioner_availability(
-	start, end, scope=None, scope_type=None, date=None, type="Available", service_unit=None
+	start,
+	end,
+	scope=None,
+	scope_type=None,
+	date=None,
+	type="Available",
+	service_unit=None,
+	create_slots=1,
+	maximum_appointments=None,
 ):
 	return frappe.get_doc(
 		{
@@ -852,6 +860,8 @@ def create_practitioner_availability(
 			"scope": scope or "Service Unit-A",
 			"status": "Active",
 			"service_unit": service_unit,
+			"create_slots": create_slots,
+			"maximum_appointments": maximum_appointments,
 		}
 	).insert(ignore_permissions=True, ignore_links=True, ignore_if_duplicate=True)
 

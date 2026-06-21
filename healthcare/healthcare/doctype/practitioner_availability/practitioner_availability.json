@@ -24,6 +24,8 @@
   "end_time",
   "end_date",
   "duration",
+  "create_slots",
+  "maximum_appointments",
   "column_break_cena",
   "repeat",
   "monday",
@@ -139,6 +141,21 @@
    "precision": "0",
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "default": "1",
+   "depends_on": "eval:doc.type == \"Available\"",
+   "fieldname": "create_slots",
+   "fieldtype": "Check",
+   "label": "Create Slots"
+  },
+  {
+   "depends_on": "eval:doc.type == \"Available\" && !doc.create_slots",
+   "fieldname": "maximum_appointments",
+   "fieldtype": "Int",
+   "label": "Maximum Number of Appointments (Nos)",
+   "mandatory_depends_on": "eval:doc.type == \"Available\" && !doc.create_slots",
+   "non_negative": 1
   },
   {
    "fieldname": "column_break_gsyx",

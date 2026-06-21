@@ -2,6 +2,10 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Practitioner Availability", {
+	refresh: function (frm) {
+		frm.events.toggle_capacity_fields(frm);
+	},
+
 	end_time: function (frm) {
 		frm.events.set_duration(frm);
 	},
@@ -28,11 +32,25 @@ frappe.ui.form.on("Practitioner Availability", {
 	},
 
 	type: function (frm) {
+		frm.events.toggle_capacity_fields(frm);
 		if (
 			frm.doc.type == "Available" &&
 			frm.doc.scope_type != "Healthcare Practitioner"
 		) {
 			frm.set_value("scope_type", "Healthcare Practitioner");
+		}
+	},
+
+	create_slots: function (frm) {
+		frm.events.toggle_capacity_fields(frm);
+	},
+
+	toggle_capacity_fields: function (frm) {
+		const show_capacity =
+			frm.doc.type == "Available" && !cint(frm.doc.create_slots);
+		frm.toggle_reqd("maximum_appointments", show_capacity);
+		if (!show_capacity) {
+			frm.set_value("maximum_appointments", null);
 		}
 	},
 });

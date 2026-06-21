@@ -36,6 +36,8 @@ class IntegrationTestPractitionerAvailability(HealthcareTestSuite):
 		end_date=None,
 		type="Available",
 		service_unit=None,
+		create_slots=1,
+		maximum_appointments=None,
 	):
 		return frappe.get_doc(
 			{
@@ -49,6 +51,8 @@ class IntegrationTestPractitionerAvailability(HealthcareTestSuite):
 				"scope": scope or "Service Unit-A",
 				"status": "Active",
 				"service_unit": service_unit,
+				"create_slots": create_slots,
+				"maximum_appointments": maximum_appointments,
 			}
 		).insert(ignore_permissions=True, ignore_links=True, ignore_if_duplicate=True)
 
@@ -61,6 +65,17 @@ class IntegrationTestPractitionerAvailability(HealthcareTestSuite):
 			service_unit="Service Unit-A",
 		)
 		self.assertEqual(pa.duration, 30)
+
+	def test_maximum_appointments_required_when_create_slots_unchecked(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.create_practitioner_availability(
+				"08:00:00",
+				"09:00:00",
+				scope_type="Healthcare Practitioner",
+				scope=self.practitioner,
+				service_unit="Service Unit-A",
+				create_slots=0,
+			)
 
 	def test_simple_overlap(self):
 		self.create_practitioner_availability(
