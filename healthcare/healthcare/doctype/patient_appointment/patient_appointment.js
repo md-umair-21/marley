@@ -237,10 +237,7 @@ frappe.ui.form.on("Patient Appointment", {
 				frm.add_custom_button(
 					__("Patient Encounter"),
 					function () {
-						frappe.model.open_mapped_doc({
-							method: "healthcare.healthcare.doctype.patient_appointment.patient_appointment.make_encounter",
-							frm: frm,
-						});
+						create_patient_encounter(frm);
 					},
 					__("Create"),
 				);
@@ -1246,6 +1243,29 @@ let reschedule_dept_or_su = function (frm) {
 	d.set_value("appointment_date", frm.doc.appointment_date);
 	d.set_value(field_config.fieldname, frm.doc[field_config.fieldname]);
 	d.show();
+};
+
+let create_patient_encounter = function (frm) {
+	if (!frm.doc.patient) {
+		frappe.throw(__("Please select patient"));
+	}
+
+	frappe.route_options = {
+		appointment: frm.doc.name,
+		patient: frm.doc.patient,
+		practitioner: frm.doc.practitioner,
+		medical_department: frm.doc.department,
+		patient_sex: frm.doc.patient_sex,
+		invoiced: frm.doc.invoiced,
+		company: frm.doc.company,
+		appointment_type: frm.doc.appointment_type,
+		insurance_policy: frm.doc.insurance_policy,
+		insurance_coverage: frm.doc.insurance_coverage,
+		inpatient_record: frm.doc.inpatient_record,
+		encounter_date: frm.doc.appointment_date,
+		encounter_time: frm.doc.appointment_time,
+	};
+	frappe.new_doc("Patient Encounter");
 };
 
 let create_vital_signs = function (frm) {
