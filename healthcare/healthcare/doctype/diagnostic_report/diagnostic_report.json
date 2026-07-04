@@ -17,6 +17,7 @@
   "column_break_v6l1",
   "company",
   "status",
+  "inpatient_record",
   "naming_series",
   "ref_doctype",
   "docname",
@@ -145,6 +146,15 @@
    "in_standard_filter": 1,
    "label": "Company",
    "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "sample_collection.inpatient_record",
+   "fieldname": "inpatient_record",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Inpatient Record",
+   "options": "Inpatient Record",
    "read_only": 1
   },
   {

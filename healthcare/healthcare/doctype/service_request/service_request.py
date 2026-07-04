@@ -353,7 +353,12 @@ def make_observation(service_request, appointment=None):
 			"Diagnostic Report", diagnostic_report, "sample_collection"
 		):
 			frappe.db.set_value(
-				"Diagnostic Report", diagnostic_report, "sample_collection", sample_collection.name
+				"Diagnostic Report",
+				diagnostic_report,
+				{
+					"sample_collection": sample_collection.name,
+					"inpatient_record": sample_collection.inpatient_record,
+				},
 			)
 		return sample_collection.name, "Sample Collection"
 	elif observation:
@@ -409,6 +414,12 @@ def insert_diagnostic_report(doc, sample_collection=None):
 	diagnostic_report.docname = doc.order_group
 	diagnostic_report.practitioner = doc.practitioner
 	diagnostic_report.sample_collection = sample_collection
+	if sample_collection:
+		diagnostic_report.inpatient_record = frappe.db.get_value(
+			"Sample Collection", sample_collection, "inpatient_record"
+		)
+	else:
+		diagnostic_report.inpatient_record = doc.inpatient_record
 	diagnostic_report.save(ignore_permissions=True)
 
 

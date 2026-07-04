@@ -11,6 +11,7 @@ from healthcare.healthcare.doctype.observation.observation import get_observatio
 class DiagnosticReport(Document):
 	def validate(self):
 		self.set_reference_details()
+		self.set_inpatient_record()
 		self.set_age()
 		self.set_title()
 		# set_diagnostic_status(self)
@@ -24,6 +25,14 @@ class DiagnosticReport(Document):
 			patient_doc = frappe.get_doc("Patient", self.patient)
 			if patient_doc.dob:
 				self.age = patient_doc.calculate_age(self.reference_posting_date).get("age_in_string")
+
+	def set_inpatient_record(self):
+		if self.sample_collection:
+			self.inpatient_record = frappe.db.get_value(
+				"Sample Collection", self.sample_collection, "inpatient_record"
+			)
+		elif not self.inpatient_record and self.patient:
+			self.inpatient_record = frappe.db.get_value("Patient", self.patient, "inpatient_record")
 
 	def set_title(self):
 		self.title = f"{self.patient_name} - {self.age or ''} {self.gender}"
