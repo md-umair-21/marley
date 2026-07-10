@@ -1686,9 +1686,10 @@ def create_sample_collection_and_observation(doc):
 		if grouped:
 			out_data = grouped
 
-	diagnostic_categories = set()
 	for grp in out_data:
 		patient = doc.patient
+		diagnostic_categories = set()
+		patient_diag_report_required = False
 		if meta.has_field("patient") and grp:
 			patient = grp
 		if meta.has_field("patient"):
@@ -1696,16 +1697,19 @@ def create_sample_collection_and_observation(doc):
 			for obs in out_data[grp]:
 				(
 					sample_collection,
-					diag_report_required,
+					current_diag_report_required,
 				) = insert_observation_and_sample_collection(
 					doc, patient, obs, sample_collection, obs.get("child")
 				)
-				if diag_report_required and obs.get("observation_category"):
+				patient_diag_report_required = (
+					patient_diag_report_required or current_diag_report_required
+				)
+				if current_diag_report_required and obs.get("observation_category"):
 					diagnostic_categories.add(obs.get("observation_category"))
 			if sample_collection and len(sample_collection.get("observation_sample_collection")) > 0:
 				sample_collection.save(ignore_permissions=True)
 
-			if diag_report_required:
+			if patient_diag_report_required:
 				if create_separate_reports and diagnostic_categories:
 					for observation_category in diagnostic_categories:
 						insert_diagnostic_report(
@@ -1754,7 +1758,7 @@ def create_sample_collection(doc, patient):
 
 
 def insert_diagnostic_report(doc, patient, sample_collection=None, observation_category=None):
-	filters = {"docname": doc.name}
+	filters = {"docname": doc.name, "patient": patient}
 	if observation_category:
 		filters["observation_category"] = observation_category
 
