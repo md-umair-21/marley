@@ -1701,9 +1701,7 @@ def create_sample_collection_and_observation(doc):
 				) = insert_observation_and_sample_collection(
 					doc, patient, obs, sample_collection, obs.get("child")
 				)
-				patient_diag_report_required = (
-					patient_diag_report_required or current_diag_report_required
-				)
+				patient_diag_report_required = patient_diag_report_required or current_diag_report_required
 				if current_diag_report_required and obs.get("observation_category"):
 					diagnostic_categories.add(obs.get("observation_category"))
 			if sample_collection and len(sample_collection.get("observation_sample_collection")) > 0:
