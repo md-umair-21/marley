@@ -24,6 +24,7 @@
   "sales_invoice_status",
   "reference_posting_date",
   "sample_collection",
+  "observation_category",
   "section_break_wtn1",
   "observation",
   "amended_from",
@@ -109,6 +110,15 @@
    "label": "Sample Collection",
    "options": "Sample Collection",
    "search_index": 1
+  },
+  {
+   "fieldname": "observation_category",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "in_standard_filter": 1,
+   "label": "Observation Category",
+   "options": "\nSocial History\nVital Signs\nImaging\nLaboratory\nProcedure\nSurvey\nExam\nTherapy\nActivity",
+   "read_only": 1
   },
   {
    "fieldname": "amended_from",

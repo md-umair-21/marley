@@ -344,9 +344,23 @@ def make_observation(service_request, appointment=None):
 		else:
 			observation = create_observation(service_request, appointment)
 
-	diagnostic_report = frappe.db.exists("Diagnostic Report", {"docname": service_request.order_group})
+	create_separate_reports = frappe.db.get_single_value(
+		"Healthcare Settings", "create_separate_diagnostic_report_based_on_observation_category"
+	)
+	observation_category = frappe.db.get_value(
+		"Observation Template", service_request.template_dn, "observation_category"
+	)
+	report_filters = {"docname": service_request.order_group}
+	if create_separate_reports and observation_category:
+		report_filters["observation_category"] = observation_category
+
+	diagnostic_report = frappe.db.exists("Diagnostic Report", report_filters)
 	if not diagnostic_report:
-		insert_diagnostic_report(service_request, sample_collection.name if sample_collection else None)
+		insert_diagnostic_report(
+			service_request,
+			sample_collection.name if sample_collection else None,
+			observation_category=observation_category if create_separate_reports else None,
+		)
 
 	if sample_collection:
 		if diagnostic_report and not frappe.db.get_value(
@@ -401,7 +415,7 @@ def create_observation(service_request, appointment=None):
 	return doc
 
 
-def insert_diagnostic_report(doc, sample_collection=None):
+def insert_diagnostic_report(doc, sample_collection=None, observation_category=None):
 	diagnostic_report = frappe.new_doc("Diagnostic Report")
 	diagnostic_report.company = doc.company
 	diagnostic_report.patient = doc.patient
@@ -409,6 +423,7 @@ def insert_diagnostic_report(doc, sample_collection=None):
 	diagnostic_report.docname = doc.order_group
 	diagnostic_report.practitioner = doc.practitioner
 	diagnostic_report.sample_collection = sample_collection
+	diagnostic_report.observation_category = observation_category
 	diagnostic_report.save(ignore_permissions=True)
 
 

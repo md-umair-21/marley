@@ -26,7 +26,8 @@ class DiagnosticReport(Document):
 				self.age = patient_doc.calculate_age(self.reference_posting_date).get("age_in_string")
 
 	def set_title(self):
-		self.title = f"{self.patient_name} - {self.age or ''} {self.gender}"
+		category = f" - {self.observation_category}" if self.observation_category else ""
+		self.title = f"{self.patient_name} - {self.age or ''} {self.gender}{category}"
 
 	def set_reference_details(self):
 		if self.ref_doctype == "Sales Invoice" and self.docname:
@@ -43,15 +44,19 @@ def diagnostic_report_print(diagnostic_report):
 
 def validate_observations_has_result(doc):
 	if doc.ref_doctype == "Sales Invoice":
+		filters = {
+			"sales_invoice": doc.docname,
+			"docstatus": ["!=", 2],
+			"has_component": False,
+			"status": ["!=", "Cancelled"],
+		}
+		if doc.observation_category:
+			filters["observation_category"] = doc.observation_category
+
 		submittable = True
 		observations = frappe.db.get_all(
 			"Observation",
-			{
-				"sales_invoice": doc.docname,
-				"docstatus": ["!=", 2],
-				"has_component": False,
-				"status": ["!=", "Cancelled"],
-			},
+			filters,
 			pluck="name",
 		)
 		for obs in observations:
@@ -63,9 +68,12 @@ def validate_observations_has_result(doc):
 def set_diagnostic_status(doc):
 	if doc.get("__islocal"):
 		return
+	filters = {"sales_invoice": doc.docname, "docstatus": 0, "status": ["!=", "Approved"], "has_component": 0}
+	if doc.observation_category:
+		filters["observation_category"] = doc.observation_category
 	observations = frappe.db.get_all(
 		"Observation",
-		{"sales_invoice": doc.docname, "docstatus": 0, "status": ["!=", "Approved"], "has_component": 0},
+		filters,
 	)
 	workflow_name = get_workflow_name("Diagnostic Report")
 	workflow_state_field = get_workflow_state_field(workflow_name)
@@ -81,14 +89,18 @@ def set_diagnostic_status(doc):
 def set_observation_status(docname):
 	doc = frappe.get_doc("Diagnostic Report", docname)
 	if doc.ref_doctype == "Sales Invoice":
+		filters = {
+			"sales_invoice": doc.docname,
+			"docstatus": ["!=", 2],
+			"has_component": False,
+			"status": ["not in", ["Cancelled", "Approved", "Rejected"]],
+		}
+		if doc.observation_category:
+			filters["observation_category"] = doc.observation_category
+
 		observations = frappe.db.get_all(
 			"Observation",
-			{
-				"sales_invoice": doc.docname,
-				"docstatus": ["!=", 2],
-				"has_component": False,
-				"status": ["not in", ["Cancelled", "Approved", "Rejected"]],
-			},
+			filters,
 			pluck="name",
 		)
 		if observations:

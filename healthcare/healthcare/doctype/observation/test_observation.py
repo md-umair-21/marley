@@ -165,6 +165,29 @@ class TestObservation(HealthcareTestSuite):
 			)
 		)
 
+	def test_separate_diagnostic_reports_from_invoice_by_observation_category(self):
+		self.enable_observation_on_invoice_submit()
+		frappe.db.set_single_value(
+			"Healthcare Settings", "create_separate_diagnostic_report_based_on_observation_category", 1
+		)
+
+		patient = self.get_test_patient()
+		lab_template = frappe.get_doc("Observation Template", "_Test Observation without Sample")
+		imaging_template = create_imaging_observation_template("_Test Observation Imaging")
+		sales_invoice = create_sales_invoice(patient, [lab_template.name, imaging_template.name])
+
+		reports = frappe.get_all(
+			"Diagnostic Report",
+			filters={"docname": sales_invoice.name, "patient": patient},
+			fields=["name", "observation_category"],
+		)
+
+		self.assertEqual(len(reports), 2)
+		self.assertEqual(
+			{report.observation_category for report in reports},
+			{"Laboratory", "Imaging"},
+		)
+
 	def test_observation_from_encounter(self):
 		observation_template = frappe.get_doc("Observation Template", "_Test Observation without Sample")
 		patient = self.get_test_patient()
@@ -384,31 +407,52 @@ class TestObservation(HealthcareTestSuite):
 		create_custom_fields(custom_fields, update=True)
 
 
-def create_sales_invoice(patient, item):
+def create_sales_invoice(patient, items):
 	sales_invoice = frappe.new_doc("Sales Invoice")
 	sales_invoice.patient = patient
 	sales_invoice.customer = frappe.db.get_value("Patient", patient, "customer")
 	sales_invoice.due_date = getdate()
 	sales_invoice.company = "_Test Company"
 	sales_invoice.debit_to = get_receivable_account("_Test Company")
-	sales_invoice.append(
-		"items",
-		{
-			"item_code": item,
-			"item_name": item,
-			"description": item,
-			"qty": 1,
-			"uom": "Nos",
-			"conversion_factor": 1,
-			"income_account": get_income_account(None, "_Test Company"),
-			"rate": 300,
-			"amount": 300,
-		},
-	)
+
+	if isinstance(items, str):
+		items = [items]
+
+	for item in items:
+		sales_invoice.append(
+			"items",
+			{
+				"item_code": item,
+				"item_name": item,
+				"description": item,
+				"qty": 1,
+				"uom": "Nos",
+				"conversion_factor": 1,
+				"income_account": get_income_account(None, "_Test Company"),
+				"rate": 300,
+				"amount": 300,
+			},
+		)
 
 	sales_invoice.set_missing_values()
 	sales_invoice.submit()
 	return sales_invoice
+
+
+def create_imaging_observation_template(name):
+	if frappe.db.exists("Observation Template", name):
+		return frappe.get_doc("Observation Template", name)
+
+	template = frappe.new_doc("Observation Template")
+	template.observation = name
+	template.item_code = name
+	template.observation_category = "Imaging"
+	template.item_group = "Services"
+	template.is_billable = 1
+	template.rate = 300
+	template.abbr = "IMG"
+	template.save()
+	return template
 
 
 def create_patient_encounter(patient, observation_template):

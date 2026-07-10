@@ -1625,6 +1625,9 @@ def company_on_trash(doc, method):
 
 def create_sample_collection_and_observation(doc):
 	meta = frappe.get_meta("Sales Invoice Item", cached=True)
+	create_separate_reports = frappe.db.get_single_value(
+		"Healthcare Settings", "create_separate_diagnostic_report_based_on_observation_category"
+	)
 	diag_report_required = False
 	data = []
 	for item in doc.items:
@@ -1666,6 +1669,7 @@ def create_sample_collection_and_observation(doc):
 				"sample_qty",
 				"has_component",
 				"sample_collection_required",
+				"observation_category",
 			],
 			as_dict=True,
 		)
@@ -1682,6 +1686,7 @@ def create_sample_collection_and_observation(doc):
 		if grouped:
 			out_data = grouped
 
+	diagnostic_categories = set()
 	for grp in out_data:
 		patient = doc.patient
 		if meta.has_field("patient") and grp:
@@ -1695,22 +1700,44 @@ def create_sample_collection_and_observation(doc):
 				) = insert_observation_and_sample_collection(
 					doc, patient, obs, sample_collection, obs.get("child")
 				)
+				if diag_report_required and obs.get("observation_category"):
+					diagnostic_categories.add(obs.get("observation_category"))
 			if sample_collection and len(sample_collection.get("observation_sample_collection")) > 0:
 				sample_collection.save(ignore_permissions=True)
 
 			if diag_report_required:
-				insert_diagnostic_report(doc, patient, sample_collection.name)
+				if create_separate_reports and diagnostic_categories:
+					for observation_category in diagnostic_categories:
+						insert_diagnostic_report(
+							doc,
+							patient,
+							sample_collection.name,
+							observation_category=observation_category,
+						)
+				else:
+					insert_diagnostic_report(doc, patient, sample_collection.name)
 		else:
 			sample_collection, diag_report_required = insert_observation_and_sample_collection(
 				doc, patient, grp, sample_collection
 			)
+			if diag_report_required and grp.get("observation_category"):
+				diagnostic_categories.add(grp.get("observation_category"))
 
 	if not meta.has_field("patient"):
 		if sample_collection and len(sample_collection.get("observation_sample_collection")) > 0:
 			sample_collection.save(ignore_permissions=True)
 
 		if diag_report_required:
-			insert_diagnostic_report(doc, patient, sample_collection.name)
+			if create_separate_reports and diagnostic_categories:
+				for observation_category in diagnostic_categories:
+					insert_diagnostic_report(
+						doc,
+						patient,
+						sample_collection.name,
+						observation_category=observation_category,
+					)
+			else:
+				insert_diagnostic_report(doc, patient, sample_collection.name)
 
 
 def create_sample_collection(doc, patient):
@@ -1726,8 +1753,12 @@ def create_sample_collection(doc, patient):
 	return sample_collection
 
 
-def insert_diagnostic_report(doc, patient, sample_collection=None):
-	if not frappe.db.exists("Diagnostic Report", {"docname": doc.name}):
+def insert_diagnostic_report(doc, patient, sample_collection=None, observation_category=None):
+	filters = {"docname": doc.name}
+	if observation_category:
+		filters["observation_category"] = observation_category
+
+	if not frappe.db.exists("Diagnostic Report", filters):
 		diagnostic_report = frappe.new_doc("Diagnostic Report")
 		diagnostic_report.company = doc.company
 		diagnostic_report.patient = patient
@@ -1735,6 +1766,7 @@ def insert_diagnostic_report(doc, patient, sample_collection=None):
 		diagnostic_report.docname = doc.name
 		diagnostic_report.practitioner = doc.ref_practitioner
 		diagnostic_report.sample_collection = sample_collection
+		diagnostic_report.observation_category = observation_category
 		diagnostic_report.save(ignore_permissions=True)
 
 

@@ -34,6 +34,7 @@
   "sb_lab_settings",
   "create_lab_test_on_si_submit",
   "create_observation_on_si_submit",
+  "create_separate_diagnostic_report_based_on_observation_category",
   "create_sample_collection_for_lab_test",
   "column_break_34",
   "lab_test_approval_required",
@@ -236,6 +237,13 @@
   },
   {
    "default": "0",
+   "description": "If enabled, Diagnostic Reports created from Observations will be split into separate reports for each Observation Category. If disabled, the existing single Diagnostic Report behavior is preserved.",
+   "fieldname": "create_separate_diagnostic_report_based_on_observation_category",
+   "fieldtype": "Check",
+   "label": "Create Separate Diagnostic Report Based on Observation Category"
+  },
+  {
+   "default": "0",
    "description": "Checking this will create a Sample Collection document  every time you create a Lab Test",
    "fieldname": "create_sample_collection_for_lab_test",
    "fieldtype": "Check",
@@ -356,7 +364,7 @@
   {
    "fieldname": "laboratory_tab",
    "fieldtype": "Tab Break",
-   "label": "Laboratory"
+   "label": "Diagnostics"
   },
   {
    "fieldname": "billing_accounts",

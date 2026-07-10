@@ -145,19 +145,26 @@ class Observation(Document):
 
 @frappe.whitelist()
 def get_observation_details(docname):
-	reference = frappe.get_value("Diagnostic Report", docname, ["docname", "ref_doctype"], as_dict=True)
+	reference = frappe.get_value(
+		"Diagnostic Report", docname, ["docname", "ref_doctype", "observation_category"], as_dict=True
+	)
 	observation = []
+	observation_category = reference.get("observation_category")
 
 	if reference.get("ref_doctype") == "Sales Invoice":
+		filters = {
+			"sales_invoice": reference.get("docname"),
+			"parent_observation": "",
+			"status": ["!=", "Cancelled"],
+			"docstatus": ["!=", 2],
+		}
+		if observation_category:
+			filters["observation_category"] = observation_category
+
 		observation = frappe.get_list(
 			"Observation",
 			fields=["*"],
-			filters={
-				"sales_invoice": reference.get("docname"),
-				"parent_observation": "",
-				"status": ["!=", "Cancelled"],
-				"docstatus": ["!=", 2],
-			},
+			filters=filters,
 			order_by="creation",
 		)
 	elif reference.get("ref_doctype") == "Patient Encounter":
@@ -172,15 +179,19 @@ def get_observation_details(docname):
 			order_by="creation",
 			pluck="name",
 		)
+		filters = {
+			"service_request": ["in", service_requests],
+			"parent_observation": "",
+			"status": ["!=", "Cancelled"],
+			"docstatus": ["!=", 2],
+		}
+		if observation_category:
+			filters["observation_category"] = observation_category
+
 		observation = frappe.get_list(
 			"Observation",
 			fields=["*"],
-			filters={
-				"service_request": ["in", service_requests],
-				"parent_observation": "",
-				"status": ["!=", "Cancelled"],
-				"docstatus": ["!=", 2],
-			},
+			filters=filters,
 			order_by="creation",
 		)
 
@@ -547,11 +558,15 @@ def set_diagnostic_report_status(doc):
 				"Sample Collection", doc.reference_docname, ["reference_doc", "reference_name"]
 			)
 
-		diagnostic_report = frappe.db.get_value(
-			"Diagnostic Report", {"ref_doctype": ref_doctype, "docname": ref_docname}, "name"
-		)
+		report_filters = {"ref_doctype": ref_doctype, "docname": ref_docname}
+		if doc.observation_category and frappe.db.exists(
+			"Diagnostic Report", {**report_filters, "observation_category": doc.observation_category}
+		):
+			report_filters["observation_category"] = doc.observation_category
 
-		if diagnostic_report:
+		diagnostic_reports = frappe.get_all("Diagnostic Report", filters=report_filters, pluck="name")
+
+		for diagnostic_report in diagnostic_reports:
 			out_data, obs_length = get_observation_details(diagnostic_report)
 			approved_observations = get_approved_observations(out_data)
 
