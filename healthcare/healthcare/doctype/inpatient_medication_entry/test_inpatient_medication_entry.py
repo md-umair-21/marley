@@ -199,4 +199,3 @@ def make_stock_entry(warehouse=None):
 	se_child.conversion_factor = 1.0
 	se_child.expense_account = expense_account
 	stock_entry.submit()
-

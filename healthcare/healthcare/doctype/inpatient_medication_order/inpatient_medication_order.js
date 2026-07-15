@@ -124,7 +124,9 @@ frappe.ui.form.on("Inpatient Medication Order", {
 				callback: function (r) {
 					const pending_orders = r.message || [];
 					if (!pending_orders.length) {
-						frappe.msgprint(__("No pending medication orders found to stop."));
+						frappe.msgprint(
+							__("No pending medication orders found to stop."),
+						);
 						return;
 					}
 
@@ -134,7 +136,9 @@ frappe.ui.form.on("Inpatient Medication Order", {
 							{
 								fieldname: "stop_help",
 								fieldtype: "HTML",
-								options: `<div class="small text-muted" style="margin-bottom: 10px;">${__("Select the pending medication dates you want to stop.")}</div>`,
+								options: `<div class="small text-muted" style="margin-bottom: 10px;">${__(
+									"Select the pending medication dates you want to stop.",
+								)}</div>`,
 							},
 							{
 								label: __("Pending Medication Orders"),
@@ -144,7 +148,7 @@ frappe.ui.form.on("Inpatient Medication Order", {
 								cannot_delete_rows: true,
 								in_place_edit: false,
 								reqd: 1,
-								data: pending_orders.map((row) => ({
+								data: pending_orders.map(row => ({
 									order_entry_name: row.name,
 									drug_name: row.drug_name || row.drug,
 									dosage: row.dosage,
@@ -196,19 +200,31 @@ frappe.ui.form.on("Inpatient Medication Order", {
 						],
 						primary_action_label: __("Stop Pending Orders"),
 						primary_action(values) {
-							const selected_rows = dialog.fields_dict.pending_orders.grid.get_selected_children();
-							const selected_entry_names = selected_rows.map((row) => row.order_entry_name);
+							const selected_rows =
+								dialog.fields_dict.pending_orders.grid.get_selected_children();
+							const selected_entry_names = selected_rows.map(
+								row => row.order_entry_name,
+							);
 
 							if (!selected_entry_names.length) {
-								frappe.throw(__("Please select at least one pending medication order to stop."));
+								frappe.throw(
+									__(
+										"Please select at least one pending medication order to stop.",
+									),
+								);
 							}
 
 							frm.call({
 								doc: frm.doc,
 								method: "stop_pending_order_entries",
-								args: { reason: values.reason, order_entry_names: selected_entry_names },
+								args: {
+									reason: values.reason,
+									order_entry_names: selected_entry_names,
+								},
 								freeze: true,
-								freeze_message: __("Stopping Pending Medication Orders"),
+								freeze_message: __(
+									"Stopping Pending Medication Orders",
+								),
 								callback: function () {
 									dialog.hide();
 									frm.reload_doc();
@@ -219,8 +235,12 @@ frappe.ui.form.on("Inpatient Medication Order", {
 
 					dialog.show();
 					dialog.fields_dict.pending_orders.grid.refresh();
-					dialog.fields_dict.pending_orders.grid.wrapper.find(".grid-remove-rows").hide();
-					dialog.fields_dict.pending_orders.grid.wrapper.find(".grid-remove-all-rows").hide();
+					dialog.fields_dict.pending_orders.grid.wrapper
+						.find(".grid-remove-rows")
+						.hide();
+					dialog.fields_dict.pending_orders.grid.wrapper
+						.find(".grid-remove-all-rows")
+						.hide();
 					dialog.$wrapper.find(".modal-dialog").css("max-width", "900px");
 				},
 			});
@@ -235,8 +255,10 @@ frappe.ui.form.on("Inpatient Medication Order", {
 
 		if (frm.doc.medication_orders && frm.doc.medication_orders.length) {
 			total_orders = frm.doc.medication_orders.length;
-			closed_orders = frm.doc.medication_orders.filter(
-				(row) => ["Completed", "Stopped"].includes(row.status || (row.is_completed ? "Completed" : "Pending")),
+			closed_orders = frm.doc.medication_orders.filter(row =>
+				["Completed", "Stopped"].includes(
+					row.status || (row.is_completed ? "Completed" : "Pending"),
+				),
 			).length;
 		}
 

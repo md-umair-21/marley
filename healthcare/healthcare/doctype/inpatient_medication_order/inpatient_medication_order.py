@@ -121,6 +121,8 @@ class InpatientMedicationOrder(Document):
 
 	@frappe.whitelist()
 	def stop_pending_order_entries(self, reason, order_entry_names=None):
+		self.check_permission("write")
+
 		if self.docstatus != 1:
 			frappe.throw(_("Only submitted Inpatient Medication Orders can be stopped."))
 
@@ -133,9 +135,26 @@ class InpatientMedicationOrder(Document):
 			frappe.throw(_("No pending medication orders found to stop."))
 
 		order_entry_names = frappe.parse_json(order_entry_names) if order_entry_names else []
-		selected_entry_names = [entry_name for entry_name in order_entry_names if entry_name in pending_entry_names]
+		selected_entry_names = [
+			entry_name for entry_name in order_entry_names if entry_name in pending_entry_names
+		]
 		if not selected_entry_names:
 			frappe.throw(_("Please select at least one pending medication order to stop."))
+
+		selected_entries = frappe.get_all(
+			"Inpatient Medication Order Entry",
+			filters={"name": ("in", selected_entry_names), "parent": self.name},
+			fields=["name", "status"],
+		)
+		selected_status_map = {entry.name: entry.status or "Pending" for entry in selected_entries}
+		if len(selected_status_map) != len(selected_entry_names) or any(
+			selected_status_map.get(entry_name) != "Pending" for entry_name in selected_entry_names
+		):
+			frappe.throw(
+				_(
+					"Some selected medication rows are no longer pending. Please refresh the document and try again."
+				)
+			)
 
 		self.remove_rows_from_draft_ipme(selected_entry_names)
 
@@ -162,7 +181,6 @@ class InpatientMedicationOrder(Document):
 			ipme_map.setdefault(ref.parent, set()).add(ref.against_imoe)
 
 		return ipme_map
-
 
 	def remove_rows_from_draft_ipme(self, order_entry_names):
 		ipme_map = self.get_ipme_map_for_rows(order_entry_names)
@@ -218,4 +236,3 @@ class InpatientMedicationOrder(Document):
 			return
 		for drug in patient_encounter.drug_prescription:
 			self.add_order_entries(drug)
-

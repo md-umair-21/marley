@@ -134,9 +134,7 @@ class TestInpatientMedicationOrder(HealthcareTestSuite):
 
 		selected_entries = [entry.name for entry in ipmo.medication_orders if entry.date == getdate()]
 		ipmo.reload()
-		ipmo.stop_pending_order_entries(
-			"Doctor instructed to stop remaining medication", selected_entries
-		)
+		ipmo.stop_pending_order_entries("Doctor instructed to stop remaining medication", selected_entries)
 		ipmo.reload()
 
 		self.assertEqual(ipmo.status, "Completed")
@@ -172,7 +170,9 @@ class TestInpatientMedicationOrder(HealthcareTestSuite):
 		ipme = create_ipme(filters)
 		ipme.submit()
 
-		selected_entries = [entry.name for entry in ipmo.medication_orders if entry.date == add_days(getdate(), -1)]
+		selected_entries = [
+			entry.name for entry in ipmo.medication_orders if entry.date == add_days(getdate(), -1)
+		]
 
 		self.assertRaisesRegex(
 			frappe.ValidationError,
@@ -180,6 +180,24 @@ class TestInpatientMedicationOrder(HealthcareTestSuite):
 			lambda: ipmo.stop_pending_order_entries("Stop submitted rows", selected_entries),
 		)
 
+	def test_stop_pending_orders_throws_refresh_error_if_selected_rows_changed(self):
+		ipmo = create_ipmo(self.patient)
+		ipmo.submit()
+		selected_entry = ipmo.medication_orders[0].name
+
+		frappe.db.set_value(
+			"Inpatient Medication Order Entry",
+			selected_entry,
+			"status",
+			"Completed",
+			update_modified=False,
+		)
+
+		self.assertRaisesRegex(
+			frappe.ValidationError,
+			"Some selected medication rows are no longer pending",
+			lambda: ipmo.stop_pending_order_entries("Stop stale row", [selected_entry]),
+		)
 
 	def tearDown(self):
 		if frappe.db.get_value("Patient", self.patient, "inpatient_record"):
@@ -254,4 +272,3 @@ def create_ipme(filters, update_stock=0):
 	ipme = ipme.get_medication_orders()
 
 	return ipme
-
