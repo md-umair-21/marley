@@ -176,8 +176,8 @@ class TestInpatientMedicationOrder(HealthcareTestSuite):
 
 		self.assertRaisesRegex(
 			frappe.ValidationError,
-			"Please refresh the document and try again",
-			lambda: ipmo.stop_pending_order_entries("Stop submitted rows", selected_entries),
+			"already administered in submitted Inpatient Medication Entry",
+			lambda: ipmo.remove_rows_from_draft_ipme(selected_entries),
 		)
 
 	def test_stop_pending_orders_throws_refresh_error_if_selected_rows_changed(self):
