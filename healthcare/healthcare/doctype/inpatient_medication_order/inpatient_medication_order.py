@@ -3,6 +3,7 @@
 
 
 import frappe
+from typing import Any
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cstr
@@ -120,7 +121,7 @@ class InpatientMedicationOrder(Document):
 		return self.get_pending_order_entries()
 
 	@frappe.whitelist()
-	def stop_pending_order_entries(self, reason, order_entry_names=None):
+	def stop_pending_order_entries(self, reason: str, order_entry_names: list[str] | str | None = None):
 		self.check_permission("write")
 
 		if self.docstatus != 1:
@@ -212,7 +213,7 @@ class InpatientMedicationOrder(Document):
 				frappe.delete_doc("Inpatient Medication Entry", ipme.name, ignore_permissions=True)
 
 	@frappe.whitelist()
-	def add_order_entries(self, order):
+	def add_order_entries(self, order: dict[str, Any]):
 		if order.get("drug_code"):
 			dosage = frappe.get_doc("Prescription Dosage", order.get("dosage"))
 			dates = get_prescription_dates(order.get("period"), self.start_date)
