@@ -9,6 +9,7 @@ frappe.ui.form.on("Inpatient Medication Order", {
 
 		frm.events.show_medication_order_button(frm);
 		frm.events.show_get_from_encounter_button(frm);
+		frm.events.show_stop_medication_button(frm);
 
 		frm.set_query("patient", () => {
 			return {
@@ -109,20 +110,145 @@ frappe.ui.form.on("Inpatient Medication Order", {
 		);
 	},
 
+	show_stop_medication_button: function (frm) {
+		if (frm.doc.docstatus !== 1 || frm.doc.status === "Completed") {
+			return;
+		}
+
+		frm.add_custom_button(__("Stop Medication Order"), () => {
+			frm.call({
+				doc: frm.doc,
+				method: "get_pending_order_entries_for_stop",
+				freeze: true,
+				freeze_message: __("Fetching Pending Medication Orders"),
+				callback: function (r) {
+					const pending_orders = r.message || [];
+					if (!pending_orders.length) {
+						frappe.msgprint(__("No pending medication orders found to stop."));
+						return;
+					}
+
+					const dialog = new frappe.ui.Dialog({
+						title: __("Stop Pending Medication Orders"),
+						fields: [
+							{
+								fieldname: "stop_help",
+								fieldtype: "HTML",
+								options: `<div class="small text-muted" style="margin-bottom: 10px;">${__("Select the pending medication dates you want to stop.")}</div>`,
+							},
+							{
+								label: __("Pending Medication Orders"),
+								fieldname: "pending_orders",
+								fieldtype: "Table",
+								cannot_add_rows: true,
+								cannot_delete_rows: true,
+								in_place_edit: false,
+								reqd: 1,
+								data: pending_orders.map((row) => ({
+									order_entry_name: row.name,
+									drug_name: row.drug_name || row.drug,
+									dosage: row.dosage,
+									date: row.date,
+									time: row.time,
+								})),
+								fields: [
+									{
+										fieldname: "order_entry_name",
+										fieldtype: "Data",
+										hidden: 1,
+									},
+									{
+										fieldname: "drug_name",
+										fieldtype: "Data",
+										label: __("Drug"),
+										in_list_view: 1,
+										read_only: 1,
+									},
+									{
+										fieldname: "dosage",
+										fieldtype: "Data",
+										label: __("Dosage"),
+										in_list_view: 1,
+										read_only: 1,
+									},
+									{
+										fieldname: "date",
+										fieldtype: "Date",
+										label: __("Date"),
+										in_list_view: 1,
+										read_only: 1,
+									},
+									{
+										fieldname: "time",
+										fieldtype: "Time",
+										label: __("Time"),
+										in_list_view: 1,
+										read_only: 1,
+									},
+								],
+							},
+							{
+								fieldname: "reason",
+								label: __("Reason"),
+								fieldtype: "Small Text",
+								reqd: 1,
+							},
+						],
+						primary_action_label: __("Stop Pending Orders"),
+						primary_action(values) {
+							const selected_rows = dialog.fields_dict.pending_orders.grid.get_selected_children();
+							const selected_entry_names = selected_rows.map((row) => row.order_entry_name);
+
+							if (!selected_entry_names.length) {
+								frappe.throw(__("Please select at least one pending medication order to stop."));
+							}
+
+							frm.call({
+								doc: frm.doc,
+								method: "stop_pending_order_entries",
+								args: { reason: values.reason, order_entry_names: selected_entry_names },
+								freeze: true,
+								freeze_message: __("Stopping Pending Medication Orders"),
+								callback: function () {
+									dialog.hide();
+									frm.reload_doc();
+								},
+							});
+						},
+					});
+
+					dialog.show();
+					dialog.fields_dict.pending_orders.grid.refresh();
+					dialog.fields_dict.pending_orders.grid.wrapper.find(".grid-remove-rows").hide();
+					dialog.fields_dict.pending_orders.grid.wrapper.find(".grid-remove-all-rows").hide();
+					dialog.$wrapper.find(".modal-dialog").css("max-width", "900px");
+				},
+			});
+		});
+	},
+
 	show_progress: function (frm) {
 		let bars = [];
 		let message = "";
+		let total_orders = frm.doc.total_orders || 0;
+		let closed_orders = frm.doc.completed_orders || 0;
 
-		// completed sessions
-		let title = __("{0} medication orders completed", [frm.doc.completed_orders]);
-		if (frm.doc.completed_orders === 1) {
-			title = __("{0} medication order completed", [frm.doc.completed_orders]);
+		if (frm.doc.medication_orders && frm.doc.medication_orders.length) {
+			total_orders = frm.doc.medication_orders.length;
+			closed_orders = frm.doc.medication_orders.filter(
+				(row) => ["Completed", "Stopped"].includes(row.status || (row.is_completed ? "Completed" : "Pending")),
+			).length;
 		}
-		title += __(" out of {0}", [frm.doc.total_orders]);
+
+		let title = __("{0} medication orders closed", [closed_orders]);
+		if (closed_orders === 1) {
+			title = __("{0} medication order closed", [closed_orders]);
+		}
+		title += __(" out of {0}", [total_orders]);
 
 		bars.push({
 			title: title,
-			width: (frm.doc.completed_orders / frm.doc.total_orders) * 100 + "%",
+			width: total_orders ? (closed_orders / total_orders) * 100 + "%" : "0%",
 			progress_class: "progress-bar-success",
 		});
 		if (bars[0].width == "0%") {

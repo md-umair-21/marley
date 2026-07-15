@@ -41,6 +41,7 @@ class TestInpatientMedicationOrder(HealthcareTestSuite):
 		# 3 dosages per day for 2 days
 		self.assertEqual(len(ipmo.medication_orders), 6)
 		self.assertEqual(ipmo.medication_orders[0].date, add_days(getdate(), -1))
+		self.assertEqual(ipmo.medication_orders[0].status, "Pending")
 
 		prescription_dosage = frappe.get_doc("Prescription Dosage", "1-1-1")
 		for i in range(len(prescription_dosage.dosage_strength)):
@@ -78,6 +79,7 @@ class TestInpatientMedicationOrder(HealthcareTestSuite):
 		ipme.submit()
 		ipmo.reload()
 		self.assertEqual(ipmo.status, "In Process")
+		self.assertEqual(ipmo.medication_orders[0].status, "Completed")
 
 		filters = frappe._dict(from_date=getdate(), to_date=getdate(), from_time="", to_time="")
 		ipme = create_ipme(filters)
@@ -100,6 +102,84 @@ class TestInpatientMedicationOrder(HealthcareTestSuite):
 		self.assertTrue(second_ipmo.name)
 		self.assertEqual(second_ipmo.docstatus, 0)
 		self.assertFalse(second_ipmo.patient_encounter)
+		
+	def test_parent_status_is_in_process_when_pending_and_stopped_rows_exist(self):
+		ipmo = create_ipmo(self.patient)
+		ipmo.submit()
+		frappe.db.set_value(
+			"Inpatient Medication Order Entry",
+			ipmo.medication_orders[0].name,
+			{"status": "Stopped", "stop_reason": "Doctor changed treatment"},
+			update_modified=False,
+		)
+		ipmo.reload()
+		ipmo.set_status(update=True)
+		ipmo.reload()
+
+		self.assertEqual(ipmo.status, "In Process")
+
+	def test_stop_pending_orders_updates_rows_and_removes_draft_ipme(self):
+		ipmo = create_ipmo(self.patient)
+		ipmo.submit()
+
+		filters = frappe._dict(
+			from_date=add_days(getdate(), -1), to_date=add_days(getdate(), -1), from_time="", to_time=""
+		)
+		ipme = create_ipme(filters)
+		ipme.submit()
+
+		draft_filters = frappe._dict(from_date=getdate(), to_date=getdate(), from_time="", to_time="")
+		draft_ipme = create_ipme(draft_filters)
+		draft_ipme.insert()
+
+		selected_entries = [entry.name for entry in ipmo.medication_orders if entry.date == getdate()]
+		ipmo.reload()
+		ipmo.stop_pending_order_entries(
+			"Doctor instructed to stop remaining medication", selected_entries
+		)
+		ipmo.reload()
+
+		self.assertEqual(ipmo.status, "Completed")
+		self.assertFalse(frappe.db.exists("Inpatient Medication Entry", draft_ipme.name))
+
+		for entry in ipmo.medication_orders:
+			if entry.date == getdate():
+				self.assertEqual(entry.status, "Stopped")
+				self.assertEqual(entry.stop_reason, "Doctor instructed to stop remaining medication")
+			else:
+				self.assertEqual(entry.status, "Completed")
+
+	def test_stop_pending_orders_only_updates_selected_rows(self):
+		ipmo = create_ipmo(self.patient)
+		ipmo.submit()
+		selected_entry = ipmo.medication_orders[0].name
+
+		ipmo.stop_pending_order_entries("Stop only first slot", [selected_entry])
+		ipmo.reload()
+
+		self.assertEqual(ipmo.status, "In Process")
+		self.assertEqual(ipmo.medication_orders[0].status, "Stopped")
+		self.assertEqual(ipmo.medication_orders[0].stop_reason, "Stop only first slot")
+		self.assertEqual(ipmo.medication_orders[1].status, "Pending")
+
+	def test_stop_pending_orders_throws_friendly_error_for_submitted_ipme(self):
+		ipmo = create_ipmo(self.patient)
+		ipmo.submit()
+
+		filters = frappe._dict(
+			from_date=add_days(getdate(), -1), to_date=add_days(getdate(), -1), from_time="", to_time=""
+		)
+		ipme = create_ipme(filters)
+		ipme.submit()
+
+		selected_entries = [entry.name for entry in ipmo.medication_orders if entry.date == add_days(getdate(), -1)]
+
+		self.assertRaisesRegex(
+			frappe.ValidationError,
+			"Please refresh the document and try again",
+			lambda: ipmo.stop_pending_order_entries("Stop submitted rows", selected_entries),
+		)
+
 
 	def tearDown(self):
 		if frappe.db.get_value("Patient", self.patient, "inpatient_record"):
@@ -174,3 +254,4 @@ def create_ipme(filters, update_stock=0):
 	ipme = ipme.get_medication_orders()
 
 	return ipme
+

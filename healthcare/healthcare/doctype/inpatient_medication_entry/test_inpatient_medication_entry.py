@@ -65,6 +65,23 @@ class TestInpatientMedicationEntry(HealthcareTestSuite):
 		self.assertEqual(len(ipme.medication_orders), 3)
 		self.assertEqual(getdate(ipme.medication_orders[0].datetime), date)
 
+	def test_stopped_rows_are_excluded_from_pending_fetch(self):
+		ipmo = create_ipmo(self.patient)
+		ipmo.submit()
+		frappe.db.set_value(
+			"Inpatient Medication Order Entry",
+			ipmo.medication_orders[0].name,
+			{"status": "Stopped", "stop_reason": "Doctor stopped first slot"},
+			update_modified=False,
+		)
+		ipmo.reload()
+		ipmo.set_status(update=True)
+
+		filters = frappe._dict(from_date="", to_date="", from_time="", to_time="", patient=self.patient)
+		ipme = create_ipme(filters, update_stock=0)
+
+		self.assertEqual(len(ipme.medication_orders), 5)
+
 	def test_ipme_with_stock_update(self):
 		ipmo = create_ipmo(self.patient)
 		ipmo.submit()
@@ -89,7 +106,11 @@ class TestInpatientMedicationEntry(HealthcareTestSuite):
 		is_order_completed = frappe.db.get_value(
 			"Inpatient Medication Order Entry", ipme.medication_orders[0].against_imoe, "is_completed"
 		)
+		order_status = frappe.db.get_value(
+			"Inpatient Medication Order Entry", ipme.medication_orders[0].against_imoe, "status"
+		)
 		self.assertEqual(is_order_completed, 1)
+		self.assertEqual(order_status, "Completed")
 
 		# test stock entry
 		stock_entry = frappe.db.exists("Stock Entry", {"inpatient_medication_entry": ipme.name})
@@ -178,3 +199,4 @@ def make_stock_entry(warehouse=None):
 	se_child.conversion_factor = 1.0
 	se_child.expense_account = expense_account
 	stock_entry.submit()
+

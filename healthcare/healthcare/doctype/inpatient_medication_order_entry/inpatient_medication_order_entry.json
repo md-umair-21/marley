@@ -13,6 +13,8 @@
   "column_break_4",
   "date",
   "time",
+  "status",
+  "stop_reason",
   "is_completed"
  ],
  "fields": [
@@ -63,6 +65,23 @@
    "in_list_view": 1,
    "label": "Time",
    "reqd": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "no_copy": 1,
+   "options": "Pending\nCompleted\nStopped",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stop_reason",
+   "fieldtype": "Small Text",
+   "label": "Stop Reason",
+   "no_copy": 1,
+   "read_only": 1
   },
   {
    "default": "0",

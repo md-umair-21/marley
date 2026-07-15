@@ -16,15 +16,16 @@ class InpatientMedicationOrder(Document):
 	def validate(self):
 		self.validate_inpatient()
 		self.validate_duplicate()
-		self.set_total_orders()
+		self.normalize_order_entry_statuses()
 		self.set_status()
 
 	def on_submit(self):
 		self.validate_inpatient()
-		self.set_status()
+		self.normalize_order_entry_statuses()
+		self.set_status(update=True)
 
 	def on_cancel(self):
-		self.set_status()
+		self.set_status(update=True)
 
 	def validate_inpatient(self):
 		if not self.inpatient_record:
@@ -50,21 +51,147 @@ class InpatientMedicationOrder(Document):
 				frappe.DuplicateEntryError,
 			)
 
-	def set_total_orders(self):
-		self.db_set("total_orders", len(self.medication_orders))
+	def normalize_order_entry_statuses(self):
+		for entry in self.medication_orders:
+			if not entry.status:
+				entry.status = "Completed" if entry.is_completed else "Pending"
 
-	def set_status(self):
+	def get_order_entry_status(self, entry):
+		return entry.status or ("Completed" if entry.is_completed else "Pending")
+
+	def set_total_orders(self):
+		self.total_orders = len(self.medication_orders)
+
+	def set_completed_orders(self):
+		self.completed_orders = sum(
+			1 for entry in self.medication_orders if self.get_order_entry_status(entry) != "Pending"
+		)
+
+	def set_status(self, update=False):
+		self.set_total_orders()
+		self.set_completed_orders()
 		status = {"0": "Draft", "1": "Submitted", "2": "Cancelled"}[cstr(self.docstatus or 0)]
 
 		if self.docstatus == 1:
-			if not self.completed_orders:
+			pending_orders = self.total_orders - self.completed_orders
+			if pending_orders == self.total_orders:
 				status = "Pending"
-			elif self.completed_orders < self.total_orders:
-				status = "In Process"
-			else:
+			elif pending_orders == 0:
 				status = "Completed"
+			else:
+				status = "In Process"
 
-		self.db_set("status", status)
+		self.status = status
+		if update and self.name and not self.is_new():
+			frappe.db.set_value(
+				self.doctype,
+				self.name,
+				{
+					"status": self.status,
+					"total_orders": self.total_orders,
+					"completed_orders": self.completed_orders,
+				},
+				update_modified=False,
+			)
+
+	def get_pending_order_entries(self):
+		pending_orders = []
+		for entry in self.medication_orders:
+			if self.get_order_entry_status(entry) != "Pending":
+				continue
+
+			pending_orders.append(
+				{
+					"name": entry.name,
+					"drug": entry.drug,
+					"drug_name": entry.drug_name,
+					"dosage": entry.dosage,
+					"dosage_form": entry.dosage_form,
+					"date": entry.date,
+					"time": entry.time,
+					"instructions": entry.instructions,
+				}
+			)
+
+		return pending_orders
+
+	@frappe.whitelist()
+	def get_pending_order_entries_for_stop(self):
+		return self.get_pending_order_entries()
+
+	@frappe.whitelist()
+	def stop_pending_order_entries(self, reason, order_entry_names=None):
+		if self.docstatus != 1:
+			frappe.throw(_("Only submitted Inpatient Medication Orders can be stopped."))
+
+		reason = (reason or "").strip()
+		if not reason:
+			frappe.throw(_("Reason is mandatory to stop pending medication orders."))
+
+		pending_entry_names = {entry.get("name") for entry in self.get_pending_order_entries()}
+		if not pending_entry_names:
+			frappe.throw(_("No pending medication orders found to stop."))
+
+		order_entry_names = frappe.parse_json(order_entry_names) if order_entry_names else []
+		selected_entry_names = [entry_name for entry_name in order_entry_names if entry_name in pending_entry_names]
+		if not selected_entry_names:
+			frappe.throw(_("Please select at least one pending medication order to stop."))
+
+		self.remove_rows_from_draft_ipme(selected_entry_names)
+
+		for entry_name in selected_entry_names:
+			frappe.db.set_value(
+				"Inpatient Medication Order Entry",
+				entry_name,
+				{"status": "Stopped", "stop_reason": reason},
+				update_modified=False,
+			)
+
+		self.reload()
+		self.set_status(update=True)
+
+	def get_ipme_map_for_rows(self, order_entry_names):
+		entry_refs = frappe.get_all(
+			"Inpatient Medication Entry Detail",
+			filters={"against_imoe": ("in", order_entry_names)},
+			fields=["parent", "against_imoe"],
+		)
+
+		ipme_map = {}
+		for ref in entry_refs:
+			ipme_map.setdefault(ref.parent, set()).add(ref.against_imoe)
+
+		return ipme_map
+
+
+	def remove_rows_from_draft_ipme(self, order_entry_names):
+		ipme_map = self.get_ipme_map_for_rows(order_entry_names)
+
+		for ipme_name, linked_order_entries in ipme_map.items():
+			ipme = frappe.get_doc("Inpatient Medication Entry", ipme_name)
+
+			if ipme.docstatus == 1:
+				frappe.throw(
+					_(
+						"Some selected medication rows are already administered in submitted Inpatient Medication Entry {0}. Please refresh the document and try again."
+					).format(frappe.bold(ipme.name))
+				)
+
+			if ipme.docstatus == 2:
+				continue
+
+			remaining_rows = [
+				row for row in ipme.medication_orders if row.against_imoe not in linked_order_entries
+			]
+
+			if len(remaining_rows) == len(ipme.medication_orders):
+				continue
+
+			ipme.set("medication_orders", remaining_rows)
+			if remaining_rows:
+				ipme.save(ignore_permissions=True)
+			else:
+				frappe.delete_doc("Inpatient Medication Entry", ipme.name, ignore_permissions=True)
 
 	@frappe.whitelist()
 	def add_order_entries(self, order):
@@ -80,6 +207,7 @@ class InpatientMedicationOrder(Document):
 					entry.dosage_form = order.get("dosage_form")
 					entry.date = date
 					entry.time = dose.strength_time
+					entry.status = "Pending"
 			self.end_date = dates[-1]
 		return
 
@@ -90,3 +218,4 @@ class InpatientMedicationOrder(Document):
 			return
 		for drug in patient_encounter.drug_prescription:
 			self.add_order_entries(drug)
+
