@@ -102,7 +102,7 @@ class TestInpatientMedicationOrder(HealthcareTestSuite):
 		self.assertTrue(second_ipmo.name)
 		self.assertEqual(second_ipmo.docstatus, 0)
 		self.assertFalse(second_ipmo.patient_encounter)
-		
+
 	def test_parent_status_is_in_process_when_pending_and_stopped_rows_exist(self):
 		ipmo = create_ipmo(self.patient)
 		ipmo.submit()
