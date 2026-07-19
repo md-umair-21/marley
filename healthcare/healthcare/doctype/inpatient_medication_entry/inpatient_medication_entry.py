@@ -78,15 +78,12 @@ class InpatientMedicationEntry(Document):
 					).format(entry.idx, get_link_to_form(entry.against_imo))
 				)
 
-			if status == "Stopped":
-				frappe.throw(
-					_("Row {0}: This Medication Order is already marked as stopped").format(entry.idx)
-				)
-
-			if is_completed or status == "Completed":
-				frappe.throw(
-					_("Row {0}: This Medication Order is already marked as completed").format(entry.idx)
-				)
+				if status in {"Stopped", "Completed"} or (status != "Stopped" and is_completed):
+					frappe.throw(
+						_("Row {0}: This Medication Order is already marked as {1}").format(
+							entry.idx, "stopped" if status == "Stopped" else "completed"
+						)
+					)
 
 	def on_cancel(self):
 		self.cancel_stock_entries()
