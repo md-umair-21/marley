@@ -14,14 +14,22 @@ from erpnext.setup.doctype.terms_and_conditions.terms_and_conditions import (
 	get_terms_and_conditions,
 )
 
+DAYS_PER_AGE_TYPE = {"Years": 365.2425, "Months": 30.436875, "Days": 1}
+
 
 class Observation(Document):
+	@property
+	def sales_invoice_status(self):
+		if self.sales_invoice:
+			return frappe.db.get_value("Sales Invoice", self.sales_invoice, "status")
+
 	def validate(self):
 		self.set_age()
 		self.set_result_time()
 		self.set_status()
 		self.reference = get_observation_reference(self)
 		self.validate_input()
+		self.sanitize_input()
 
 	def on_update(self):
 		set_diagnostic_report_status(self)
@@ -118,20 +126,21 @@ class Observation(Document):
 					)
 				)
 
+	def sanitize_input(self):
+		html_fields = ["result_text", "result_interpretation", "note"]
+		for field in html_fields:
+			value = self.get(field)
+			if value:
+				self.set(field, frappe.utils.sanitize_html(value))
+
 	def render_templates(self):
 		if self.result_template and not self.result_text:
-			terms_and_conditions = frappe.get_doc("Terms and Conditions", self.result_template)
-
-			if terms_and_conditions.terms:
-				self.result_text = frappe.render_template(terms_and_conditions.terms, self.as_dict())
+			self.result_text = get_terms_and_conditions(self.result_template, self.as_dict())
 
 		if self.interpretation_template and not self.result_interpretation:
-			terms_and_conditions = frappe.get_doc("Terms and Conditions", self.interpretation_template)
-
-			if terms_and_conditions.terms:
-				self.result_interpretation = frappe.render_template(
-					terms_and_conditions.terms, self.as_dict()
-				)
+			self.result_interpretation = get_terms_and_conditions(
+				self.interpretation_template, self.as_dict()
+			)
 
 
 @frappe.whitelist()
@@ -273,32 +282,41 @@ def get_observation_reference(doc):
 	display_reference = ""
 
 	for child in template_doc.observation_reference_range:
-		if not child.applies_to == "All":
-			if not child.applies_to == doc.gender:
-				continue
-		if child.age == "Range":
-			day_from = day_to = 0
-			if child.from_age_type == "Months":
-				day_from = float(child.age_from) * 30.436875
-			elif child.from_age_type == "Years":
-				day_from = float(child.age_from) * 365.2425
-			elif child.from_age_type == "Days":
-				day_from = float(child.age_from)
-
-			if child.to_age_type == "Months":
-				day_to = float(child.age_to) * 30.436875
-			elif child.to_age_type == "Years":
-				day_to = float(child.age_to) * 365.2425
-			elif child.to_age_type == "Days":
-				day_to = float(child.age_to)
-
-			if doc.days and float(day_from) <= float(doc.days) <= float(day_to):
-				display_reference += set_reference_string(child)
-
-		elif child.age == "All" or not doc.days:
+		if reference_applies_to_patient(child, doc) and reference_matches_age(child, doc):
 			display_reference += set_reference_string(child)
 
 	return display_reference
+
+
+def reference_applies_to_patient(child, doc):
+	if child.applies_to == "All":
+		return True
+	return child.applies_to == doc.gender
+
+
+def reference_matches_age(child, doc):
+	missing_days = doc.days is None or doc.days == ""
+	if child.age != "Range":
+		return child.age == "All" or missing_days
+
+	if missing_days:
+		return False
+
+	day_from = age_value_in_days(child.age_from, child.from_age_type)
+	day_to = age_value_in_days(child.age_to, child.to_age_type)
+	if day_from is None or day_to is None:
+		return False
+
+	return day_from <= float(doc.days) <= day_to
+
+
+def age_value_in_days(value, age_type):
+	if value in (None, "") or age_type not in DAYS_PER_AGE_TYPE:
+		return None
+	try:
+		return float(value) * DAYS_PER_AGE_TYPE[age_type]
+	except (ValueError, TypeError):
+		return None
 
 
 def set_reference_string(child):

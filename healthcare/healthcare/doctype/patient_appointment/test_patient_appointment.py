@@ -10,6 +10,7 @@ from frappe.utils import add_days, flt, get_time, getdate, now_datetime, nowdate
 from erpnext.accounts.doctype.pos_profile.test_pos_profile import make_pos_profile
 
 from healthcare.healthcare.doctype.patient_appointment.patient_appointment import (
+	check_in_appointment,
 	check_is_new_patient,
 	check_payment_reqd,
 	invoice_appointment,
@@ -27,7 +28,6 @@ class TestPatientAppointment(HealthcareTestSuite):
 		frappe.db.sql("""delete from `tabFee Validity`""")
 		frappe.db.sql("""delete from `tabPatient Encounter`""")
 		make_pos_profile()
-		frappe.db.sql("""delete from `tabHealthcare Service Unit` where name like '_Test %'""")
 		frappe.db.sql("DELETE FROM `tabPractitioner Availability`")
 
 		self.patient = frappe.get_list("Patient", pluck="name")[0]
@@ -43,6 +43,42 @@ class TestPatientAppointment(HealthcareTestSuite):
 		self.assertEqual(frappe.db.get_value("Patient Appointment", appointment.name, "status"), "Closed")
 		encounter.cancel()
 		self.assertEqual(frappe.db.get_value("Patient Appointment", appointment.name, "status"), "Open")
+
+	def test_check_in_appointment(self):
+		frappe.db.set_single_value("Healthcare Settings", "show_payment_popup", 0)
+		default_duration = frappe.db.get_value(
+			"Appointment Type", "_Test Appointment Type", "default_duration"
+		)
+		appointment = create_appointment(
+			self.patient, self.practitioner, nowdate(), duration=default_duration
+		)
+		self.assertEqual(appointment.status, "Open")
+
+		check_in_appointment(appointment.name, practitioner=self.practitioner)
+		appointment.reload()
+		self.assertEqual(appointment.status, "Checked In")
+		self.assertEqual(appointment.practitioner, self.practitioner)
+		self.assertEqual(appointment.position_in_queue, 1)
+
+	def test_check_in_past_no_show_appointment(self):
+		frappe.db.set_single_value("Healthcare Settings", "show_payment_popup", 0)
+		default_duration = frappe.db.get_value(
+			"Appointment Type", "_Test Appointment Type", "default_duration"
+		)
+		appointment = create_appointment(
+			self.patient, self.practitioner, add_days(nowdate(), -2), duration=default_duration
+		)
+		self.assertEqual(appointment.status, "No Show")
+
+		check_in_appointment(appointment.name)
+		appointment.reload()
+		self.assertEqual(appointment.status, "Checked In")
+
+	def test_cannot_check_in_cancelled_appointment(self):
+		frappe.db.set_single_value("Healthcare Settings", "show_payment_popup", 0)
+		appointment = create_appointment(self.patient, self.practitioner, nowdate())
+		update_status(appointment.name, "Cancelled")
+		self.assertRaises(frappe.ValidationError, check_in_appointment, appointment.name)
 
 	def test_start_encounter(self):
 		frappe.db.set_single_value("Healthcare Settings", "show_payment_popup", 1)
@@ -323,7 +359,7 @@ class TestPatientAppointment(HealthcareTestSuite):
 		ip_record.save(ignore_permissions=True)
 
 		# Admit
-		service_unit = get_healthcare_service_unit("_Test Service Unit Ip Occupancy")
+		service_unit = get_healthcare_service_unit()
 		admit_patient(ip_record, service_unit, now_datetime())
 
 		appointment = create_appointment(
@@ -356,12 +392,10 @@ class TestPatientAppointment(HealthcareTestSuite):
 		ip_record.save(ignore_permissions=True)
 
 		# Admit
-		service_unit = get_healthcare_service_unit("_Test Service Unit Ip Occupancy")
+		service_unit = get_healthcare_service_unit()
 		admit_patient(ip_record, service_unit, now_datetime())
 
-		appointment_service_unit = get_healthcare_service_unit(
-			"_Test Service Unit Ip Occupancy for Appointment"
-		)
+		appointment_service_unit = "_Test HSU - Appointments"
 		appointment = create_appointment(
 			self.patient, self.practitioner, nowdate(), service_unit=appointment_service_unit, save=0
 		)
