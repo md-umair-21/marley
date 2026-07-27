@@ -257,4 +257,3 @@ def get_healthcare_service_unit(unit_name=None):
 	service_unit.occupancy_status = "Vacant"
 	service_unit.save()
 	return service_unit.name
-
