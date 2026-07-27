@@ -78,12 +78,36 @@ class InpatientMedicationEntry(Document):
 					).format(entry.idx, get_link_to_form(entry.against_imo))
 				)
 
-				if status in {"Stopped", "Completed"} or (status != "Stopped" and is_completed):
-					frappe.throw(
-						_("Row {0}: This Medication Order is already marked as {1}").format(
-							entry.idx, "stopped" if status == "Stopped" else "completed"
-						)
+			if status in {"Stopped", "Completed"} or (status != "Stopped" and is_completed):
+				frappe.throw(
+					_("Row {0}: This Medication Order is already marked as {1}").format(
+						entry.idx, "stopped" if status == "Stopped" else "completed"
 					)
+				)
+
+	@frappe.whitelist()
+	def get_stopped_linked_rows(self):
+		stopped_rows = []
+
+		for entry in self.medication_orders:
+			if not entry.against_imoe:
+				continue
+
+			status = frappe.db.get_value("Inpatient Medication Order Entry", entry.against_imoe, "status")
+			if status != "Stopped":
+				continue
+
+			stopped_rows.append(
+				{
+					"name": entry.name,
+					"idx": entry.idx,
+					"against_imoe": entry.against_imoe,
+					"drug_code": entry.drug_code,
+					"drug_name": entry.drug_name,
+				}
+			)
+
+		return stopped_rows
 
 	def on_cancel(self):
 		self.cancel_stock_entries()

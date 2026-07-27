@@ -82,6 +82,36 @@ class TestInpatientMedicationEntry(HealthcareTestSuite):
 
 		self.assertEqual(len(ipme.medication_orders), 5)
 
+	def test_stopped_linked_rows_are_returned_for_draft_cleanup(self):
+		ipmo = create_ipmo(self.patient)
+		ipmo.submit()
+
+		filters = frappe._dict(from_date=getdate(), to_date=getdate(), from_time="", to_time="", patient=self.patient)
+		draft_ipme = create_ipme(filters, update_stock=0)
+		selected_entries = [entry.name for entry in ipmo.medication_orders if entry.date == getdate()]
+
+		ipmo.stop_pending_order_entries("Doctor stopped remaining medication", selected_entries)
+		stopped_rows = draft_ipme.get_stopped_linked_rows()
+
+		self.assertEqual(len(stopped_rows), len(selected_entries))
+		self.assertTrue(all(row.get("against_imoe") in selected_entries for row in stopped_rows))
+
+	def test_draft_ipme_save_is_blocked_for_stopped_rows(self):
+		ipmo = create_ipmo(self.patient)
+		ipmo.submit()
+
+		filters = frappe._dict(from_date=getdate(), to_date=getdate(), from_time="", to_time="", patient=self.patient)
+		draft_ipme = create_ipme(filters, update_stock=0)
+		selected_entries = [entry.name for entry in ipmo.medication_orders if entry.date == getdate()]
+
+		ipmo.stop_pending_order_entries("Doctor stopped remaining medication", selected_entries)
+
+		self.assertRaisesRegex(
+			frappe.ValidationError,
+			"already marked as stopped",
+			draft_ipme.insert,
+		)
+
 	def test_ipme_with_stock_update(self):
 		ipmo = create_ipmo(self.patient)
 		ipmo.submit()

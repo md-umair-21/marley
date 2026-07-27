@@ -118,7 +118,7 @@ class TestInpatientMedicationOrder(HealthcareTestSuite):
 
 		self.assertEqual(ipmo.status, "In Process")
 
-	def test_stop_pending_orders_updates_rows_and_removes_draft_ipme(self):
+	def test_stop_pending_orders_updates_rows_and_keeps_draft_ipme(self):
 		ipmo = create_ipmo(self.patient)
 		ipmo.submit()
 
@@ -131,14 +131,15 @@ class TestInpatientMedicationOrder(HealthcareTestSuite):
 		draft_filters = frappe._dict(from_date=getdate(), to_date=getdate(), from_time="", to_time="")
 		draft_ipme = create_ipme(draft_filters)
 		draft_ipme.insert()
-
+		draft_row_count = len(draft_ipme.medication_orders)
 		selected_entries = [entry.name for entry in ipmo.medication_orders if entry.date == getdate()]
 		ipmo.reload()
 		ipmo.stop_pending_order_entries("Doctor instructed to stop remaining medication", selected_entries)
 		ipmo.reload()
-
+		draft_ipme.reload()
 		self.assertEqual(ipmo.status, "Completed")
-		self.assertFalse(frappe.db.exists("Inpatient Medication Entry", draft_ipme.name))
+		self.assertTrue(frappe.db.exists("Inpatient Medication Entry", draft_ipme.name))
+		self.assertEqual(len(draft_ipme.medication_orders), draft_row_count)
 
 		for entry in ipmo.medication_orders:
 			if entry.date == getdate():
@@ -159,26 +160,6 @@ class TestInpatientMedicationOrder(HealthcareTestSuite):
 		self.assertEqual(ipmo.medication_orders[0].status, "Stopped")
 		self.assertEqual(ipmo.medication_orders[0].stop_reason, "Stop only first slot")
 		self.assertEqual(ipmo.medication_orders[1].status, "Pending")
-
-	def test_stop_pending_orders_throws_friendly_error_for_submitted_ipme(self):
-		ipmo = create_ipmo(self.patient)
-		ipmo.submit()
-
-		filters = frappe._dict(
-			from_date=add_days(getdate(), -1), to_date=add_days(getdate(), -1), from_time="", to_time=""
-		)
-		ipme = create_ipme(filters)
-		ipme.submit()
-
-		selected_entries = [
-			entry.name for entry in ipmo.medication_orders if entry.date == add_days(getdate(), -1)
-		]
-
-		self.assertRaisesRegex(
-			frappe.ValidationError,
-			"already administered in submitted Inpatient Medication Entry",
-			lambda: ipmo.remove_rows_from_draft_ipme(selected_entries),
-		)
 
 	def test_stop_pending_orders_throws_refresh_error_if_selected_rows_changed(self):
 		ipmo = create_ipmo(self.patient)

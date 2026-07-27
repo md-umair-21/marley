@@ -158,8 +158,6 @@ class InpatientMedicationOrder(Document):
 				)
 			)
 
-		self.remove_rows_from_draft_ipme(selected_entry_names)
-
 		for entry_name in selected_entry_names:
 			frappe.db.set_value(
 				"Inpatient Medication Order Entry",
@@ -170,48 +168,6 @@ class InpatientMedicationOrder(Document):
 
 		self.reload()
 		self.set_status(update=True)
-
-	def get_ipme_map_for_rows(self, order_entry_names):
-		entry_refs = frappe.get_all(
-			"Inpatient Medication Entry Detail",
-			filters={"against_imoe": ("in", order_entry_names)},
-			fields=["parent", "against_imoe"],
-		)
-
-		ipme_map = {}
-		for ref in entry_refs:
-			ipme_map.setdefault(ref.parent, set()).add(ref.against_imoe)
-
-		return ipme_map
-
-	def remove_rows_from_draft_ipme(self, order_entry_names):
-		ipme_map = self.get_ipme_map_for_rows(order_entry_names)
-
-		for ipme_name, linked_order_entries in ipme_map.items():
-			ipme = frappe.get_doc("Inpatient Medication Entry", ipme_name)
-
-			if ipme.docstatus == 1:
-				frappe.throw(
-					_(
-						"Some selected medication rows are already administered in submitted Inpatient Medication Entry {0}. Please refresh the document and try again."
-					).format(frappe.bold(ipme.name))
-				)
-
-			if ipme.docstatus == 2:
-				continue
-
-			remaining_rows = [
-				row for row in ipme.medication_orders if row.against_imoe not in linked_order_entries
-			]
-
-			if len(remaining_rows) == len(ipme.medication_orders):
-				continue
-
-			ipme.set("medication_orders", remaining_rows)
-			if remaining_rows:
-				ipme.save(ignore_permissions=True)
-			else:
-				frappe.delete_doc("Inpatient Medication Entry", ipme.name, ignore_permissions=True)
 
 	@frappe.whitelist()
 	def add_order_entries(self, order: dict[str, Any] | Document):
