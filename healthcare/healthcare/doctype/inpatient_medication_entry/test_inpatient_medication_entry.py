@@ -89,6 +89,7 @@ class TestInpatientMedicationEntry(HealthcareTestSuite):
 		filters = frappe._dict(
 			from_date=getdate(), to_date=getdate(), from_time="", to_time="", patient=self.patient
 		)
+		draft_ipme = create_ipme(filters, update_stock=0)
 		selected_entries = [entry.name for entry in ipmo.medication_orders if entry.date == getdate()]
 
 		ipmo.stop_pending_order_entries("Doctor stopped remaining medication", selected_entries)
@@ -104,6 +105,7 @@ class TestInpatientMedicationEntry(HealthcareTestSuite):
 		filters = frappe._dict(
 			from_date=getdate(), to_date=getdate(), from_time="", to_time="", patient=self.patient
 		)
+		draft_ipme = create_ipme(filters, update_stock=0)
 		selected_entries = [entry.name for entry in ipmo.medication_orders if entry.date == getdate()]
 
 		ipmo.stop_pending_order_entries("Doctor stopped remaining medication", selected_entries)
