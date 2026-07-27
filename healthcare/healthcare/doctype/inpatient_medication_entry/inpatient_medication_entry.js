@@ -2,7 +2,11 @@
 // For license information, please see license.txt
 
 function prompt_to_remove_stopped_rows(frm) {
-	if (frm.doc.docstatus !== 0 || !(frm.doc.medication_orders || []).length || frm.__stopped_row_prompt_open) {
+	if (
+		frm.doc.docstatus !== 0 ||
+		!(frm.doc.medication_orders || []).length ||
+		frm.__stopped_row_prompt_open
+	) {
 		return;
 	}
 
@@ -18,21 +22,25 @@ function prompt_to_remove_stopped_rows(frm) {
 			frm.__stopped_row_prompt_open = true;
 			const message =
 				stopped_rows.length === 1
-					? __("1 medication row in this draft entry was stopped in the linked Inpatient Medication Order. Do you want to remove it now?")
+					? __(
+							"1 medication row in this draft entry was stopped in the linked Inpatient Medication Order. Do you want to remove it now?",
+					  )
 					: __(
-						"{0} medication rows in this draft entry were stopped in the linked Inpatient Medication Order. Do you want to remove them now?",
-						[stopped_rows.length],
-					);
+							"{0} medication rows in this draft entry were stopped in the linked Inpatient Medication Order. Do you want to remove them now?",
+							[stopped_rows.length],
+					  );
 
 			frappe.confirm(
 				message,
 				() => {
-					const rows_to_remove = new Set(stopped_rows.map((row) => row.name));
+					const rows_to_remove = new Set(stopped_rows.map(row => row.name));
 					const remaining_rows = (frm.doc.medication_orders || [])
-						.filter((row) => !rows_to_remove.has(row.name))
-						.map((row) => ({ ...row }));
+						.filter(row => !rows_to_remove.has(row.name))
+						.map(row => ({ ...row }));
 					frappe.model.clear_table(frm.doc, "medication_orders");
-					remaining_rows.forEach((row) => frm.add_child("medication_orders", row));
+					remaining_rows.forEach(row =>
+						frm.add_child("medication_orders", row),
+					);
 					frm.refresh_field("medication_orders");
 					frm.dirty();
 					frm.__stopped_row_prompt_open = false;
@@ -40,7 +48,9 @@ function prompt_to_remove_stopped_rows(frm) {
 				() => {
 					frm.__stopped_row_prompt_open = false;
 					frappe.show_alert({
-						message: __("Stopped medication rows were kept in draft. Remove them before saving or submitting."),
+						message: __(
+							"Stopped medication rows were kept in draft. Remove them before saving or submitting.",
+						),
 						indicator: "orange",
 					});
 				},
@@ -81,7 +91,8 @@ frappe.ui.form.on("Inpatient Medication Entry", {
 
 		prompt_to_remove_stopped_rows(frm);
 
-		if (frm.doc.__islocal || frm.doc.docstatus !== 0 || !frm.doc.update_stock) return;
+		if (frm.doc.__islocal || frm.doc.docstatus !== 0 || !frm.doc.update_stock)
+			return;
 
 		frm.add_custom_button(__("Make Stock Entry"), function () {
 			frappe.call({
