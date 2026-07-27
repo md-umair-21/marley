@@ -82,34 +82,90 @@ class TestInpatientRecord(HealthcareTestSuite):
 
 	def test_do_not_bill_patient_encounters_for_inpatients(self):
 		frappe.db.sql("""delete from `tabInpatient Record`""")
-		setup_inpatient_settings(key="do_not_bill_inpatient_encounters", value=1)
-		patient = frappe.get_list("Patient", pluck="name")[0]
-		# Schedule Admission
-		ip_record = create_inpatient(patient)
-		ip_record.expected_length_of_stay = 0
-		ip_record.save(ignore_permissions=True)
+		settings = frappe.get_single("Healthcare Settings")
+		original_do_not_bill = settings.do_not_bill_inpatient_encounters
+		original_allow_discharge = settings.allow_discharge_despite_pending_healthcare_services
 
-		# Admit
-		service_unit = get_healthcare_service_unit()
-		admit_patient(ip_record, service_unit, now_datetime())
+		try:
+			setup_inpatient_settings(key="do_not_bill_inpatient_encounters", value=1)
+			setup_inpatient_settings(key="allow_discharge_despite_pending_healthcare_services", value=1)
+			patient = frappe.get_list("Patient", pluck="name")[0]
+			# Schedule Admission
+			ip_record = create_inpatient(patient)
+			ip_record.expected_length_of_stay = 0
+			ip_record.save(ignore_permissions=True)
 
-		# Patient Encounter
-		patient_encounter = create_patient_encounter()
-		encounters = get_encounters_to_invoice(patient, "_Test Company")
-		encounter_ids = [entry.reference_name for entry in encounters]
-		self.assertFalse(patient_encounter.name in encounter_ids)
+			# Admit
+			service_unit = get_healthcare_service_unit()
+			admit_patient(ip_record, service_unit, now_datetime())
 
-		# Discharge
-		schedule_discharge(frappe.as_json({"patient": patient}))
-		self.assertEqual(
-			"Vacant", frappe.db.get_value("Healthcare Service Unit", service_unit, "occupancy_status")
-		)
+			# Patient Encounter
+			patient_encounter = create_patient_encounter()
+			encounters = get_encounters_to_invoice(patient, "_Test Company")
+			encounter_ids = [entry.reference_name for entry in encounters]
+			self.assertFalse(patient_encounter.name in encounter_ids)
 
-		ip_record = frappe.get_doc("Inpatient Record", ip_record.name)
-		mark_invoiced_inpatient_occupancy(ip_record)
-		discharge_patient(ip_record)
-		setup_inpatient_settings(key="do_not_bill_inpatient_encounters", value=0)
+			# Discharge
+			schedule_discharge(frappe.as_json({"patient": patient}))
+			self.assertEqual(
+				"Vacant", frappe.db.get_value("Healthcare Service Unit", service_unit, "occupancy_status")
+			)
 
+			ip_record = frappe.get_doc("Inpatient Record", ip_record.name)
+			mark_invoiced_inpatient_occupancy(ip_record)
+			discharge_patient(ip_record)
+		finally:
+			setup_inpatient_settings(key="do_not_bill_inpatient_encounters", value=original_do_not_bill)
+			setup_inpatient_settings(
+				key="allow_discharge_despite_pending_healthcare_services",
+				value=original_allow_discharge,
+			)
+	def test_allow_discharge_despite_pending_healthcare_services(self):
+		frappe.db.sql("""delete from `tabInpatient Record`""")
+		settings = frappe.get_single("Healthcare Settings")
+		original_allow_discharge = settings.allow_discharge_despite_pending_healthcare_services
+
+		try:
+			setup_inpatient_settings(key="allow_discharge_despite_pending_healthcare_services", value=1)
+			patient = frappe.get_list("Patient", pluck="name")[0]
+			# Schedule Admission
+			ip_record = create_inpatient(patient)
+			ip_record.expected_length_of_stay = 0
+			ip_record.save(ignore_permissions=True)
+
+			# Admit
+			service_unit = get_healthcare_service_unit()
+			admit_patient(ip_record, service_unit, now_datetime())
+
+			service_request = frappe.get_doc(
+				{
+					"doctype": "Service Request",
+					"order_date": today(),
+					"order_time": "00:00:00",
+					"company": "_Test Company",
+					"status": "draft-Request Status",
+					"patient": patient,
+					"source_doc": "Inpatient Record",
+					"inpatient_record": ip_record.name,
+				}
+			)
+			service_request.insert(ignore_permissions=True, ignore_mandatory=True)
+			service_request.submit()
+
+			# Discharge
+			schedule_discharge(frappe.as_json({"patient": patient}))
+			self.assertEqual(
+				"Vacant", frappe.db.get_value("Healthcare Service Unit", service_unit, "occupancy_status")
+			)
+
+			ip_record = frappe.get_doc("Inpatient Record", ip_record.name)
+			mark_invoiced_inpatient_occupancy(ip_record)
+			discharge_patient(ip_record)
+		finally:
+			setup_inpatient_settings(
+				key="allow_discharge_despite_pending_healthcare_services",
+				value=original_allow_discharge,
+			)
 	def test_validate_overlap_admission(self):
 		frappe.db.sql("""delete from `tabInpatient Record`""")
 		patient = frappe.get_list("Patient", pluck="name")[0]
