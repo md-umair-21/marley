@@ -116,7 +116,10 @@ class TestInpatientRecord(HealthcareTestSuite):
 			discharge_patient(ip_record)
 		finally:
 			setup_inpatient_settings(key="do_not_bill_inpatient_encounters", value=original_do_not_bill)
-			setup_inpatient_settings(key="allow_discharge_despite_pending_healthcare_services", value=original_allow_discharge,)
+			setup_inpatient_settings(
+				key="allow_discharge_despite_pending_healthcare_services",
+				value=original_allow_discharge,
+			)
 
 	def test_validate_overlap_admission(self):
 		frappe.db.sql("""delete from `tabInpatient Record`""")
@@ -254,3 +257,4 @@ def get_healthcare_service_unit(unit_name=None):
 	service_unit.occupancy_status = "Vacant"
 	service_unit.save()
 	return service_unit.name
+
