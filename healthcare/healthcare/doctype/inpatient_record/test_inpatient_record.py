@@ -83,6 +83,7 @@ class TestInpatientRecord(HealthcareTestSuite):
 	def test_do_not_bill_patient_encounters_for_inpatients(self):
 		frappe.db.sql("""delete from `tabInpatient Record`""")
 		setup_inpatient_settings(key="do_not_bill_inpatient_encounters", value=1)
+		setup_inpatient_settings(key="allow_discharge_despite_pending_healthcare_services", value=1)
 		patient = frappe.get_list("Patient", pluck="name")[0]
 		# Schedule Admission
 		ip_record = create_inpatient(patient)
@@ -109,6 +110,7 @@ class TestInpatientRecord(HealthcareTestSuite):
 		mark_invoiced_inpatient_occupancy(ip_record)
 		discharge_patient(ip_record)
 		setup_inpatient_settings(key="do_not_bill_inpatient_encounters", value=0)
+		setup_inpatient_settings(key="allow_discharge_despite_pending_healthcare_services", value=0)
 
 	def test_validate_overlap_admission(self):
 		frappe.db.sql("""delete from `tabInpatient Record`""")
