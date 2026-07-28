@@ -1223,9 +1223,7 @@ def set_invoiced(item, method, ref_invoice=None):
 
 
 def validate_invoiced_on_submit(item):
-	if item.parenttype == "Sales Invoice" and frappe.db.get_value(
-		item.parenttype, item.parent, "is_return"
-	):
+	if item.parenttype == "Sales Invoice" and frappe.db.get_value(item.parenttype, item.parent, "is_return"):
 		return
 
 	is_invoiced = False
@@ -1922,4 +1920,3 @@ def add_node():
 		args.parent_healthcare_service_unit = None
 
 	frappe.get_doc(args).insert()
-
