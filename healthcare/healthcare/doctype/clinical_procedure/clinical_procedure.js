@@ -294,13 +294,66 @@ frappe.ui.form.on("Clinical Procedure", {
 
 	procedure_template: function (frm) {
 		if (frm.doc.procedure_template) {
+			const selected_template = frm.doc.procedure_template;
+			const request_id = (frm.procedure_template_request_id || 0) + 1;
+			frm.procedure_template_request_id = request_id;
+
+			frappe.db
+				.get_value(
+					"Clinical Procedure Template",
+					selected_template,
+					"consume_stock",
+				)
+				.then(r => {
+					if (
+						!is_active_procedure_template_request(
+							frm,
+							selected_template,
+							request_id,
+						)
+					) {
+						return;
+					}
+
+					const consume_stock = cint(r.message?.consume_stock);
+					frm.set_value("consume_stock", consume_stock);
+
+					if (consume_stock) {
+						frm.events.set_procedure_consumables(
+							frm,
+							selected_template,
+							request_id,
+						);
+						if (!frm.doc.warehouse) {
+							frm.events.set_warehouse(
+								frm,
+								selected_template,
+								request_id,
+							);
+						}
+					} else {
+						frm.clear_table("items");
+						frm.refresh_field("items");
+					}
+				});
+
 			frappe.call({
 				method: "healthcare.healthcare.utils.get_medical_codes",
 				args: {
 					template_dt: "Clinical Procedure Template",
-					template_dn: frm.doc.procedure_template,
+					template_dn: selected_template,
 				},
 				callback: function (r) {
+					if (
+						!is_active_procedure_template_request(
+							frm,
+							selected_template,
+							request_id,
+						)
+					) {
+						return;
+					}
+
 					if (!r.exc && r.message) {
 						frm.doc.codification_table = [];
 						$.each(r.message, function (k, val) {
@@ -321,11 +374,15 @@ frappe.ui.form.on("Clinical Procedure", {
 				},
 			});
 		} else {
+			frm.procedure_template_request_id =
+				(frm.procedure_template_request_id || 0) + 1;
+			frm.set_value("consume_stock", 0);
+			frm.clear_table("items");
+			frm.refresh_field("items");
 			frm.clear_table("codification_table");
 			frm.refresh_field("codification_table");
 		}
 	},
-
 	service_unit: function (frm) {
 		if (frm.doc.service_unit) {
 			frappe.call({
@@ -366,7 +423,11 @@ frappe.ui.form.on("Clinical Procedure", {
 		}
 	},
 
-	set_warehouse: function (frm) {
+	set_warehouse: function (
+		frm,
+		selected_template = frm.doc.procedure_template,
+		request_id = null,
+	) {
 		if (!frm.doc.warehouse) {
 			frappe.call({
 				method: "frappe.client.get_value",
@@ -375,21 +436,47 @@ frappe.ui.form.on("Clinical Procedure", {
 					fieldname: "default_warehouse",
 				},
 				callback: function (data) {
+					if (
+						!is_active_procedure_template_request(
+							frm,
+							selected_template,
+							request_id,
+						) ||
+						frm.doc.warehouse
+					) {
+						return;
+					}
+
 					frm.set_value("warehouse", data.message.default_warehouse);
 				},
 			});
 		}
 	},
+	set_procedure_consumables: function (
+		frm,
+		selected_template = frm.doc.procedure_template,
+		request_id = null,
+	) {
+		frm.clear_table("items");
+		frm.refresh_field("items");
 
-	set_procedure_consumables: function (frm) {
 		frappe.call({
 			method: "healthcare.healthcare.doctype.clinical_procedure.clinical_procedure.get_procedure_consumables",
 			args: {
-				procedure_template: frm.doc.procedure_template,
+				procedure_template: selected_template,
 			},
 			callback: function (data) {
+				if (
+					!is_active_procedure_template_request(
+						frm,
+						selected_template,
+						request_id,
+					)
+				) {
+					return;
+				}
+
 				if (data.message) {
-					frm.doc.items = [];
 					$.each(data.message, function (i, v) {
 						let item = frm.add_child("items");
 						item.item_code = v.item_code;
@@ -403,12 +490,28 @@ frappe.ui.form.on("Clinical Procedure", {
 							v.invoice_separately_as_consumables;
 						item.batch_no = v.batch_no;
 					});
-					refresh_field("items");
+					frm.refresh_field("items");
+				} else {
+					frm.clear_table("items");
+					frm.refresh_field("items");
 				}
+			},
+			error: function () {
+				if (
+					!is_active_procedure_template_request(
+						frm,
+						selected_template,
+						request_id,
+					)
+				) {
+					return;
+				}
+
+				frm.clear_table("items");
+				frm.refresh_field("items");
 			},
 		});
 	},
-
 	set_medical_codes: function (frm) {
 		frappe.call({
 			method: "healthcare.healthcare.utils.get_medical_codes",
@@ -496,6 +599,21 @@ let calculate_age = function (birth) {
 	return `${years} ${__("Years(s)")} ${age.getMonth()} ${__(
 		"Month(s)",
 	)} ${age.getDate()} ${__("Day(s)")}`;
+};
+
+let is_active_procedure_template_request = function (
+	frm,
+	selected_template,
+	request_id,
+) {
+	if (!selected_template) {
+		return false;
+	}
+
+	return (
+		frm.doc.procedure_template === selected_template &&
+		(request_id == null || frm.procedure_template_request_id === request_id)
+	);
 };
 
 let get_procedure_prescribed = function (frm) {
