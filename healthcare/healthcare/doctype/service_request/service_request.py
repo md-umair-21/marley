@@ -275,13 +275,14 @@ def make_observation(service_request: str, appointment: str | None = None) -> tu
 		observation = create_observation(service_request, appointment)
 
 		save_sample_collection = False
+		component_observation_by_template = {}
 		(
 			sample_reqd_component_obs,
 			non_sample_reqd_component_obs,
 		) = get_observation_template_details(service_request.template_dn)
 		if len(non_sample_reqd_component_obs) > 0:
 			for comp in non_sample_reqd_component_obs:
-				add_observation(
+				component_observation_by_template[comp] = add_observation(
 					patient=service_request.patient,
 					template=comp,
 					doc="Patient Encounter",
@@ -310,6 +311,26 @@ def make_observation(service_request: str, appointment: str | None = None) -> tu
 					"status": "Open",
 					"sample_qty": obs_template.sample_qty,
 					"component_observation_parent": observation.name,
+					"service_request": service_request.name,
+				},
+			)
+
+		for component in get_nested_sample_collection_groups(service_request.template_dn):
+			save_sample_collection = True
+			sample_collection.append(
+				"observation_sample_collection",
+				{
+					"observation_template": component.name,
+					"sample": component.sample,
+					"sample_type": component.sample_type,
+					"container_closure_color": component.container_closure_color,
+					"component_observations": json.dumps(set_component_observation_data(component.name)),
+					"uom": component.uom,
+					"status": "Open",
+					"sample_qty": component.sample_qty,
+					"component_observation_parent": component_observation_by_template.get(
+						component.name, observation.name
+					),
 					"service_request": service_request.name,
 				},
 			)
@@ -359,6 +380,38 @@ def make_observation(service_request: str, appointment: str | None = None) -> tu
 		return sample_collection.name, "Sample Collection"
 	elif observation:
 		return observation.name, "Observation"
+
+
+def get_nested_sample_collection_groups(observation_template):
+	_sample_reqd_component_obs, non_sample_reqd_component_obs = get_observation_template_details(
+		observation_template
+	)
+	components = []
+
+	for comp in non_sample_reqd_component_obs:
+		component = frappe.get_cached_value(
+			"Observation Template",
+			comp,
+			[
+				"name",
+				"has_component",
+				"sample",
+				"sample_type",
+				"container_closure_color",
+				"uom",
+				"sample_qty",
+			],
+			as_dict=True,
+		)
+		if component.has_component:
+			sample_reqd_component_obs, _non_sample_reqd_component_obs = get_observation_template_details(
+				component.name
+			)
+			if len(sample_reqd_component_obs) > 0:
+				components.append(component)
+			components.extend(get_nested_sample_collection_groups(component.name))
+
+	return components
 
 
 def create_sample_collection(patient, service_request, appointment=None, template=None):

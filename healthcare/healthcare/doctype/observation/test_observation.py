@@ -9,6 +9,7 @@ from healthcare.healthcare.doctype.healthcare_settings.healthcare_settings impor
 	get_income_account,
 	get_receivable_account,
 )
+from healthcare.healthcare.doctype.service_request.service_request import make_observation
 from healthcare.tests.utils import HealthcareTestSuite
 
 
@@ -178,6 +179,44 @@ class TestObservation(HealthcareTestSuite):
 					"template_dn": observation_template.name,
 					"order_group": encounter.name,
 				},
+			)
+		)
+
+	def test_nested_component_sample_collection_from_encounter(self):
+		grouped_template = frappe.get_doc("Observation Template", "_Test Observation Grouped with Sample")
+		if frappe.db.exists("Observation Template", "_Test Encounter Nested Package"):
+			package = frappe.get_doc("Observation Template", "_Test Encounter Nested Package")
+		else:
+			package = frappe.get_doc(
+				{
+					"doctype": "Observation Template",
+					"observation": "_Test Encounter Nested Package",
+					"item_code": "_Test Encounter Nested Package",
+					"observation_category": "Laboratory",
+					"item_group": "Services",
+					"has_component": 1,
+					"rate": 300,
+					"is_billable": 1,
+					"observation_component": [
+						{"observation_template": grouped_template.name},
+					],
+				}
+			).insert(ignore_permissions=True)
+		patient = self.get_test_patient()
+		encounter = create_patient_encounter(patient, package.name)
+		service_request = frappe.db.get_value(
+			"Service Request",
+			{"patient": patient, "template_dn": package.name, "order_group": encounter.name},
+			"name",
+		)
+
+		sample_collection, doctype = make_observation(service_request)
+
+		self.assertEqual(doctype, "Sample Collection")
+		self.assertTrue(
+			frappe.db.exists(
+				"Observation Sample Collection",
+				{"parent": sample_collection, "observation_template": grouped_template.name},
 			)
 		)
 
