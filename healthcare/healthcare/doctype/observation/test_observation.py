@@ -209,6 +209,13 @@ class TestObservation(HealthcareTestSuite):
 			{"patient": patient, "template_dn": package.name, "order_group": encounter.name},
 			"name",
 		)
+		service_request_company = (
+			frappe.db.get_value("Service Request", service_request, "company")
+			or frappe.db.get_value("Patient Encounter", encounter.name, "company")
+			or frappe.defaults.get_user_default("Company")
+			or frappe.defaults.get_user_default("company")
+			or frappe.db.get_single_value("Global Defaults", "default_company")
+		)
 
 		sample_collection, doctype = make_observation(service_request)
 
@@ -219,6 +226,22 @@ class TestObservation(HealthcareTestSuite):
 				{"parent": sample_collection, "observation_template": grouped_template.name},
 			)
 		)
+		observations = frappe.db.get_all(
+			"Observation",
+			filters={"service_request": service_request},
+			fields=["name", "company"],
+		)
+		self.assertTrue(observations)
+		self.assertTrue(all(obs.company == service_request_company for obs in observations))
+		component_observation_company = frappe.db.get_value(
+			"Observation",
+			{
+				"parent_observation": observations[0].name,
+				"observation_template": grouped_template.name,
+			},
+			"company",
+		)
+		self.assertEqual(component_observation_company, service_request_company)
 
 	def test_formula_computes_result(self):
 		self.enable_observation_on_invoice_submit()
@@ -453,6 +476,7 @@ def create_sales_invoice(patient, item):
 def create_patient_encounter(patient, observation_template):
 	patient_encounter = frappe.new_doc("Patient Encounter")
 	patient_encounter.patient = patient
+	patient_encounter.company = "_Test Company"
 	patient_encounter.practitioner = frappe.get_list("Healthcare Practitioner", pluck="name")[0]
 	patient_encounter.appointment_type = "_Test Appointment Type"
 	patient_encounter.encounter_date = getdate()

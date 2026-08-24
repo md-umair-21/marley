@@ -237,6 +237,7 @@ def make_observation(service_request: str, appointment: str | None = None) -> tu
 		return
 
 	service_request = frappe.get_cached_doc("Service Request", service_request)
+	service_request.company = get_service_request_company(service_request)
 
 	if (
 		frappe.db.get_single_value("Healthcare Settings", "process_service_request_only_if_paid")
@@ -288,6 +289,7 @@ def make_observation(service_request: str, appointment: str | None = None) -> tu
 					doc="Patient Encounter",
 					docname=service_request.order_group,
 					parent=observation.name,
+					company=service_request.company,
 				)
 
 		if len(sample_reqd_component_obs) > 0:
@@ -414,6 +416,24 @@ def get_nested_sample_collection_groups(observation_template):
 	return components
 
 
+def get_service_request_company(service_request):
+	if service_request.company:
+		return service_request.company
+
+	if service_request.source_doc and service_request.order_group:
+		source_company = frappe.db.get_value(
+			service_request.source_doc, service_request.order_group, "company"
+		)
+		if source_company:
+			return source_company
+
+	return (
+		frappe.defaults.get_user_default("Company")
+		or frappe.defaults.get_user_default("company")
+		or frappe.db.get_single_value("Global Defaults", "default_company")
+	)
+
+
 def create_sample_collection(patient, service_request, appointment=None, template=None):
 	sample_collection = frappe.new_doc("Sample Collection")
 	sample_collection.patient = patient.name
@@ -451,6 +471,7 @@ def create_observation(service_request, appointment=None):
 	doc.reference_doctype = "Patient Encounter"
 	doc.reference_docname = service_request.order_group
 	doc.service_request = service_request.name
+	doc.company = service_request.company
 	doc.insert()
 	return doc
 
